@@ -1,11 +1,42 @@
-<div align="center">
+# WizTalk V1.0.0
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+WizTalk is a local-first, character-based conversational AI web application. Designed initially as a magical, Harry Potter-themed experience, it is built with an extensible architecture capable of scaling into a general-purpose AI platform.
 
-  <h1>Built with AI Studio</h2>
+## Features
+- 🪄 **Magical Experience**: Immersive, warm, character-centric UI.
+- 🇮🇷 **Persian-First**: Full RTL layout and Persian language support out of the box.
+- 🗣️ **Voice Integration**: Native Speech-to-Text and Text-to-Speech capabilities.
+- 🧠 **AI Flexibility**: Connects to OpenAI, Google Gemini, or works entirely offline using a local FAQ fallback.
+- 💾 **Local Memory**: Preserves chat history safely in your browser.
+- 📱 **Responsive**: Works beautifully on Desktop, Tablet, and Mobile.
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## Project Structure
+- `frontend/`: React + Vite + Tailwind CSS UI.
+- `backend/`: Express server proxying AI API calls.
+- `data/`: Local character configurations and FAQ knowledge base.
+- `docs/`: Comprehensive architecture and deployment guides.
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## Local Installation (Windows/Mac/Linux)
+1. Ensure Node.js (v20+) is installed.
+2. Clone this repository.
+3. Run `npm install` to install dependencies.
+4. Copy `.env.example` to `.env` and configure your API keys (e.g., `GEMINI_API_KEY`).
+5. Run `npm run dev` to start the application.
+6. Open your browser to `http://localhost:3000`.
 
-</div>
+## Render Deployment
+1. Connect this GitHub repo to Render.
+2. Build Command: `npm install && npm run build`
+3. Start Command: `npm start`
+4. Set required Environment Variables.
+
+## Documentation
+Please check the `docs/` folder for detailed guides on Architecture, Memory Systems, Voice configuration, and Future Agent implementations.
+
+## Limitations
+- V1 utilizes `localStorage` for memory (no cross-device sync).
+- Voice features depend on native browser support.
+- Does not currently support complex multi-agent reasoning (planned for future).
+
+## License
+Private / Personal Use
