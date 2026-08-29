@@ -1,19 +1,20 @@
 # Roadmap
 
-## V1 (Current)
-- Core chat interface (Harry Potter themed)
-- Persian-first, full RTL
-- Basic Speech-to-Text / Text-to-Speech
-- AI Provider integration (OpenAI, Gemini)
-- Offline fallback (Local FAQ)
-- Browser-based local memory
+## Implemented in V1
+- Persian RTL responsive chat.
+- Harry, Hermione, and Ron JSON character data.
+- Custom character create, edit, duplicate, and delete in browser storage.
+- Local FAQ, Gemini, and OpenAI adapters.
+- Secure server-side provider keys.
+- Avatar state controller and portrait renderer.
+- Browser STT/TTS integration with graceful errors.
+- LocalStorage memory abstraction.
 
-## V2
-- Real-time lip-sync for avatars
-- Cloud database (Firebase/Supabase) for cross-device syncing
-- Multi-user authentication
+## Planned next
+- Database-backed characters and conversations.
+- User accounts and cross-device memory.
+- Character media upload and richer avatar renderers.
+- Audio amplitude-driven animation.
 
-## V3
-- Fully integrated Agent architecture
-- MCP (Model Context Protocol) integration for Web Search and Lore queries
-- Robust moderation and safety evaluation pipeline
+## Future
+- Phoneme-level lip-sync, Live2D/3D/video avatars, moderation, and tool/agent integrations.

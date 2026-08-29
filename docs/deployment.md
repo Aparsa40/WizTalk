@@ -1,18 +1,12 @@
-# Render Deployment
+# Deployment
 
-WizTalk is designed to be easily deployed as a Web Service on Render.
+WizTalk runs as one Express service. Development uses Vite middleware. Production serves the Vite output from dist and serves the API from the same process.
 
-## Steps
-1. Push this repository to GitHub.
-2. In Render, create a new "Web Service" and connect your repository.
-3. **Build Command**: `npm install && npm run build`
-4. **Start Command**: `npm start`
-5. **Environment Variables**:
-   - `GEMINI_API_KEY` (Required if using Gemini)
-   - `NODE_ENV` = `production`
-   - `PORT` = `3000` (Render defaults to 10000, but our server binds to 3000/0.0.0.0, Render will detect it if you expose it or let Render assign a port and we read `process.env.PORT || 3000`).
+For Render:
+- Build command: npm install && npm run build
+- Start command: npm start
+- Set NODE_ENV=production.
+- Let Render provide PORT, or set it explicitly. The server reads process.env.PORT and binds to 0.0.0.0.
+- Set GEMINI_API_KEY and/or OPENAI_API_KEY only when those providers are enabled.
 
-*(Note: The provided `server.ts` hardcodes PORT 3000 to match AI Studio infrastructure, but for a general Render deploy, you would normally read `process.env.PORT`)*
-
-## Persistence Notes
-Because Render uses ephemeral filesystems, the local `faqs.json` and `characters` are static. `localStorage` user memory resides purely in the client's browser, so it survives deployments seamlessly!
+The built-in JSON data is part of the repository. Browser memory uses localStorage and is therefore client-specific; it is not a replacement for durable server persistence.

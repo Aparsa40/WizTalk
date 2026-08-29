@@ -1,42 +1,57 @@
-# WizTalk V1.0.0
+# WizTalk
 
-WizTalk is a local-first, character-based conversational AI web application. Designed initially as a magical, Harry Potter-themed experience, it is built with an extensible architecture capable of scaling into a general-purpose AI platform.
+WizTalk is a Persian-first, local-first conversational application where people chat with configurable AI characters. The V1 implementation keeps the original Harry, Hermione, and Ron experience while making characters, providers, avatars, voice, and memory replaceable modules.
 
-## Features
-- 🪄 **Magical Experience**: Immersive, warm, character-centric UI.
-- 🇮🇷 **Persian-First**: Full RTL layout and Persian language support out of the box.
-- 🗣️ **Voice Integration**: Native Speech-to-Text and Text-to-Speech capabilities.
-- 🧠 **AI Flexibility**: Connects to OpenAI, Google Gemini, or works entirely offline using a local FAQ fallback.
-- 💾 **Local Memory**: Preserves chat history safely in your browser.
-- 📱 **Responsive**: Works beautifully on Desktop, Tablet, and Mobile.
+## Implemented
+- React 19, Vite, TypeScript, Express, and Tailwind CSS 4.
+- RTL Persian interface with responsive desktop, tablet, and mobile layouts.
+- Harry, Hermione, and Ron loaded from data/characters JSON files.
+- Local FAQ mode, Gemini, and OpenAI provider routing through the server.
+- Server-only GEMINI_API_KEY and OPENAI_API_KEY; no provider key is sent to the browser or stored in localStorage.
+- Character schema with identity, personality, system prompt, AI model, voice, and avatar configuration.
+- Browser-local custom character management: create, edit, duplicate, and delete.
+- Avatar state controller with idle, listening, thinking, speaking, and error states.
+- Browser Speech Recognition and Speech Synthesis with unsupported-browser and permission error handling.
+- Per-character browser memory with a storage abstraction ready for IndexedDB or a database later.
+- Health and model configuration endpoints.
 
-## Project Structure
-- `frontend/`: React + Vite + Tailwind CSS UI.
-- `backend/`: Express server proxying AI API calls.
-- `data/`: Local character configurations and FAQ knowledge base.
-- `docs/`: Comprehensive architecture and deployment guides.
+## Architecture
+- src/components: chat, avatar, settings, character selection, form, and management UI.
+- src/services: API, AI configuration, character service, avatar controller, voice service, and memory store.
+- src/types: domain contracts independent of persistence.
+- server/services: character loading, FAQ matching, and AI provider adapters.
+- data: built-in character and local FAQ data.
 
-## Local Installation (Windows/Mac/Linux)
-1. Ensure Node.js (v20+) is installed.
-2. Clone this repository.
-3. Run `npm install` to install dependencies.
-4. Copy `.env.example` to `.env` and configure your API keys (e.g., `GEMINI_API_KEY`).
-5. Run `npm run dev` to start the application.
-6. Open your browser to `http://localhost:3000`.
+## Setup
+Requirements: Node.js 20 or newer.
 
-## Render Deployment
-1. Connect this GitHub repo to Render.
-2. Build Command: `npm install && npm run build`
-3. Start Command: `npm start`
-4. Set required Environment Variables.
+1. Install dependencies with npm install.
+2. Copy .env.example to .env.
+3. Add provider keys only when the matching cloud provider is needed.
+4. Start development with npm run dev.
+5. Open http://localhost:3000.
 
-## Documentation
-Please check the `docs/` folder for detailed guides on Architecture, Memory Systems, Voice configuration, and Future Agent implementations.
+## Production
+- Build: npm run build
+- Start: npm start
+- The server reads PORT from the environment and binds to 0.0.0.0. For Render, use build command npm install && npm run build and start command npm start.
 
-## Limitations
-- V1 utilizes `localStorage` for memory (no cross-device sync).
-- Voice features depend on native browser support.
-- Does not currently support complex multi-agent reasoning (planned for future).
+## Providers and models
+Local uses the FAQ dataset and needs no key. Gemini and OpenAI use server-side credentials. The model list is deliberately allow-listed in server/services/ai.ts; adding a model means changing that configuration rather than pretending to install a model at runtime.
 
-## License
-Private / Personal Use
+## Character system
+Built-in characters are static JSON and read-only in the browser. Custom characters are stored in localStorage and are sent to the server only with their chat request. This is a V1 local architecture; it is not cross-device storage or a shared character catalog.
+
+## Avatar and voice
+Avatar is a portrait presentation, not a waveform. AvatarAnimationController separates interaction state from rendering so a future SVG, Canvas, Live2D, 3D, video, or lip-sync renderer can replace the current portrait. Speaking currently uses browser TTS when enabled; amplitude and phoneme lip-sync are planned, not claimed as implemented.
+
+## Memory
+LocalStorageMemory is the active implementation behind the MemoryStore interface. Messages are separated per character. A future database adapter can replace the store without changing chat components.
+
+## Limitations and roadmap
+- Cloud character persistence, accounts, and cross-device conversations are future work.
+- Browser voice support varies by browser and installed system voices.
+- Cloud AI providers require server environment variables.
+- V1 does not provide phoneme-level lip-sync, moderation, or a local model runtime.
+
+See docs for focused architecture, setup, deployment, data, provider, memory, and voice notes.

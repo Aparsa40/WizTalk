@@ -1,16 +1,11 @@
-# Setup Guide
+# Setup
 
-## Requirements
-- Node.js 20+
-- npm (or yarn/pnpm)
-- Windows / macOS / Linux
+Requirements: Node.js 20 or newer.
 
-## Installation
-1. Clone or download the repository.
-2. Run `npm install` in the project root.
-3. Make a copy of `.env.example` as `.env`.
-4. Configure required secrets (e.g. `GEMINI_API_KEY`).
-5. Run `npm run dev` to start the frontend and backend servers together.
+1. Run npm install.
+2. Copy .env.example to .env.
+3. Add server provider keys if required.
+4. Run npm run dev.
+5. Visit http://localhost:3000.
 
-## Environment Variables
-See `environment.md` for full details.
+Verification commands are npm run lint, npm run build, and npm start. Local mode and the built-in FAQ work without cloud credentials.
