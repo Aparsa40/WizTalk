@@ -14,7 +14,7 @@ export interface ServerCharacter {
   enabled: boolean; source?: 'builtin' | 'custom';
 }
 
-function normalize(raw: Record<string, any>, source: 'builtin' | 'custom' = 'builtin'): ServerCharacter {
+export function normalizeCharacter(raw: Record<string, any>, source: 'builtin' | 'custom' = 'builtin'): ServerCharacter {
   const personality = typeof raw.personality === 'string'
     ? { description: raw.personality, behavior: '', tone: '', communicationStyle: '' }
     : raw.personality || {};
@@ -41,10 +41,8 @@ export async function listCharacters(): Promise<ServerCharacter[]> {
     try {
       const raw = JSON.parse(await fs.readFile(path.join(charactersDirectory, entry.name), 'utf8')) as Record<string, any>;
       if (!raw.id || !raw.name || !raw.systemInstructions) throw new Error('required fields missing');
-      characters.push(normalize(raw));
-    } catch (error) {
-      console.error('Skipping malformed character file ' + entry.name, error);
-    }
+      characters.push(normalizeCharacter(raw));
+    } catch (error) { console.error('Skipping malformed character file ' + entry.name, error); }
   }
   return characters.filter((character) => character.enabled).sort((a, b) => a.name.localeCompare(b.name));
 }
