@@ -1,103 +1,16 @@
 import React, { useState } from 'react';
-import { AppState, Provider } from '../types';
+import { AppState, Character, Provider } from '../types';
+import { getDefaultModel, PROVIDER_CONFIGS } from '../services/ai';
+import { CharacterManager } from './CharacterManager';
+import { X } from 'lucide-react';
 
-interface SettingsProps {
-  appState: AppState;
-  onUpdateState: (newState: Partial<AppState>) => void;
-  onClose: () => void;
-}
-
-export function Settings({ appState, onUpdateState, onClose }: SettingsProps) {
-  const [openAiKey, setOpenAiKey] = useState(appState.openAiKey);
+interface SettingsProps { appState: AppState; characters: Character[]; onCharactersChange: (characters: Character[]) => void; onUpdateState: (updates: Partial<AppState>) => void; onClose: () => void; }
+export function Settings({ appState, characters, onCharactersChange, onUpdateState, onClose }: SettingsProps) {
   const [provider, setProvider] = useState<Provider>(appState.provider);
-  const [model, setModel] = useState(appState.model);
-
-  const handleSave = () => {
-    onUpdateState({
-      openAiKey,
-      provider,
-      model: model || (provider === 'gemini' ? 'gemini-2.5-flash' : provider === 'openai' ? 'gpt-4o-mini' : '')
-    });
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#2a1b42] border border-[#4a3b62] rounded-2xl w-full max-w-md p-6 text-amber-50 shadow-2xl relative">
-        <button 
-          onClick={onClose}
-          className="absolute top-4 left-4 text-amber-50/50 hover:text-amber-50"
-        >
-          ✕
-        </button>
-        
-        <h2 className="text-2xl font-bold mb-6 text-amber-400">تنظیمات هوش مصنوعی</h2>
-        
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium mb-2 opacity-80">مدل پاسخ‌گو (Provider)</label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                onClick={() => setProvider('local')}
-                className={`py-2 rounded-lg text-sm border ${provider === 'local' ? 'bg-amber-500/20 border-amber-500 text-amber-300' : 'border-[#4a3b62] opacity-70 hover:opacity-100'}`}
-              >
-                آفلاین (Local)
-              </button>
-              <button
-                onClick={() => setProvider('gemini')}
-                className={`py-2 rounded-lg text-sm border ${provider === 'gemini' ? 'bg-blue-500/20 border-blue-500 text-blue-300' : 'border-[#4a3b62] opacity-70 hover:opacity-100'}`}
-              >
-                Gemini
-              </button>
-              <button
-                onClick={() => setProvider('openai')}
-                className={`py-2 rounded-lg text-sm border ${provider === 'openai' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300' : 'border-[#4a3b62] opacity-70 hover:opacity-100'}`}
-              >
-                OpenAI
-              </button>
-            </div>
-            {provider === 'local' && <p className="text-xs mt-2 text-amber-50/50">پاسخ‌های از پیش آماده آفلاین.</p>}
-            {provider === 'gemini' && <p className="text-xs mt-2 text-amber-50/50">Gemini نیاز به کلید دارد که در سرور پیکربندی شده است.</p>}
-          </div>
-
-          {provider === 'openai' && (
-            <div>
-              <label className="block text-sm font-medium mb-2 opacity-80">کلید API OpenAI</label>
-              <input
-                type="password"
-                value={openAiKey}
-                onChange={(e) => setOpenAiKey(e.target.value)}
-                placeholder="sk-..."
-                className="w-full bg-[#1a0f2e] border border-[#4a3b62] rounded-lg px-4 py-2 text-left focus:outline-none focus:border-amber-500"
-                dir="ltr"
-              />
-            </div>
-          )}
-
-          {(provider === 'gemini' || provider === 'openai') && (
-            <div>
-              <label className="block text-sm font-medium mb-2 opacity-80">مدل</label>
-              <input
-                type="text"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder={provider === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini'}
-                className="w-full bg-[#1a0f2e] border border-[#4a3b62] rounded-lg px-4 py-2 text-left focus:outline-none focus:border-amber-500"
-                dir="ltr"
-              />
-            </div>
-          )}
-
-          <div className="pt-4 border-t border-[#4a3b62]">
-            <button
-              onClick={handleSave}
-              className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 rounded-lg transition-colors"
-            >
-              ذخیره تنظیمات
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  const [model, setModel] = useState(appState.model || getDefaultModel(appState.provider));
+  const [voiceEnabled, setVoiceEnabled] = useState(appState.voiceEnabled);
+  const [showManager, setShowManager] = useState(false);
+  const config = PROVIDER_CONFIGS.find((item) => item.id === provider) || PROVIDER_CONFIGS[0];
+  const save = () => { onUpdateState({ provider, model: model || config.defaultModel, voiceEnabled }); onClose(); };
+  return <><div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"><div className="relative w-full max-w-lg rounded-3xl border border-white/10 bg-[#2a1740] p-6 text-amber-50 shadow-2xl"><button type="button" onClick={onClose} className="absolute left-5 top-5 rounded-full p-2 text-amber-100/60 hover:bg-white/10 hover:text-white"><X className="h-5 w-5" /></button><p className="text-xs uppercase tracking-[0.2em] text-amber-300/60">WizTalk Settings</p><h2 className="mt-1 text-2xl font-bold text-amber-200">تنظیمات گفت‌وگو</h2><div className="mt-7 space-y-6"><div><label className="text-sm text-amber-100/80">ارائه‌دهنده‌ی پاسخ</label><div className="mt-2 grid grid-cols-3 gap-2">{PROVIDER_CONFIGS.map((item) => <button type="button" key={item.id} onClick={() => { setProvider(item.id); setModel(item.defaultModel); }} className={'rounded-xl border px-2 py-3 text-xs transition ' + (provider === item.id ? 'border-amber-300 bg-amber-300/10 text-amber-200' : 'border-white/10 text-amber-50/60 hover:bg-white/5')}>{item.label}</button>)}</div><p className="mt-2 text-xs text-amber-50/45">{config.description} {config.requiresServerKey ? 'کلید این سرویس باید فقط در محیط سرور تنظیم شود.' : ''}</p></div><div><label className="text-sm text-amber-100/80">مدل</label><select className="mt-2 w-full rounded-xl border border-white/10 bg-[#170c26] px-3 py-3 text-sm text-amber-50 outline-none focus:border-amber-300/70" value={model} onChange={(e) => setModel(e.target.value)}>{config.models.map((item) => <option value={item} key={item}>{item}</option>)}</select></div><label className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/10 p-4"><span><span className="block text-sm text-amber-100">خواندن پاسخ با صدا</span><span className="mt-1 block text-xs text-amber-50/45">از Text-to-Speech مرورگر با زبان شخصیت استفاده می‌کند.</span></span><input type="checkbox" checked={voiceEnabled} onChange={(e) => setVoiceEnabled(e.target.checked)} className="h-5 w-5 accent-amber-400" /></label><button type="button" onClick={() => setShowManager(true)} className="w-full rounded-xl border border-amber-300/30 px-4 py-3 text-sm text-amber-200 transition hover:bg-amber-300/10">مدیریت شخصیت‌ها ({characters.length})</button><button type="button" onClick={save} className="w-full rounded-xl bg-amber-500 py-3 font-bold text-[#21102e] transition hover:bg-amber-400">ذخیره تنظیمات</button></div></div></div>{showManager && <CharacterManager characters={characters} onChange={onCharactersChange} onClose={() => setShowManager(false)} />}</>;
 }

@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "name": "WizTalk",
+  "description": "A Persian-first, extensible character conversation platform.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API", "CHARACTER_MANAGEMENT", "BROWSER_VOICE"]
 }

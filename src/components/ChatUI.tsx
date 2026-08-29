@@ -1,244 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Character, Message, AppState } from '../types';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Mic, MicOff, Send, Settings as SettingsIcon, Volume2 } from 'lucide-react';
+import { AppState, AvatarState, Character, Message } from '../types';
 import { ApiService } from '../services/api';
-import { VoiceService } from '../services/voice';
-import { MemoryService } from '../services/memory';
 import { Avatar } from './Avatar';
-import { Mic, MicOff, Send, Settings as SettingsIcon, Volume2, ArrowRight } from 'lucide-react';
+import { AvatarAnimationController } from '../services/avatar';
+import { MemoryService } from '../services/memory';
+import { VoiceService } from '../services/voice';
 
-interface ChatUIProps {
-  character: Character;
-  appState: AppState;
-  onBack: () => void;
-  onOpenSettings: () => void;
-}
-
+interface ChatUIProps { character: Character; appState: AppState; onBack: () => void; onOpenSettings: () => void; }
 export function ChatUI({ character, appState, onBack, onOpenSettings }: ChatUIProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [avatarState, setAvatarState] = useState<'idle' | 'listening' | 'thinking' | 'speaking' | 'error'>('idle');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [messages, setMessages] = useState<Message[]>([]); const [input, setInput] = useState(''); const [isTyping, setIsTyping] = useState(false); const [isListening, setIsListening] = useState(false); const [avatarState, setAvatarState] = useState<AvatarState>('idle');
+  const controller = useRef<AvatarAnimationController>(); const speakingTimer = useRef<number>(); const messagesEndRef = useRef<HTMLDivElement>(null);
+  if (!controller.current) controller.current = new AvatarAnimationController();
+  const setState = (state: AvatarState) => controller.current?.setState(state);
 
-  useEffect(() => {
-    // Load messages from memory
-    const savedMessages = MemoryService.getMessages(character.id);
-    if (savedMessages.length === 0) {
-      // Add greeting
-      const greetingMsg: Message = {
-        id: Date.now().toString(),
-        sender: 'character',
-        text: character.greeting,
-        timestamp: Date.now()
-      };
-      MemoryService.saveMessage(character.id, greetingMsg);
-      setMessages([greetingMsg]);
-    } else {
-      setMessages(savedMessages);
-    }
-  }, [character.id]);
+  useEffect(() => { const unsubscribe = controller.current?.subscribe(setAvatarState); const saved = MemoryService.getMessages(character.id); if (saved.length) setMessages(saved); else { const greeting = { id: 'greeting-' + character.id, sender: 'character' as const, text: character.greeting, timestamp: Date.now() }; MemoryService.saveMessage(character.id, greeting); setMessages([greeting]); } return () => { unsubscribe?.(); VoiceService.abortListening(); VoiceService.stopSpeaking(); if (speakingTimer.current) window.clearTimeout(speakingTimer.current); }; }, [character.id]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isTyping]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+  const finishSpeaking = () => { if (speakingTimer.current) window.clearTimeout(speakingTimer.current); speakingTimer.current = window.setTimeout(() => setState('idle'), 700); };
+  const speak = async (text: string) => { setState('speaking'); if (appState.voiceEnabled && character.voice.enabled) { try { await VoiceService.speak(text, character.voice.language, character.voice.voiceId); } catch (error) { console.warn('TTS unavailable', error); finishSpeaking(); } } else finishSpeaking(); };
+  const handleSend = async () => { if (!input.trim() || isTyping) return; const userMsg: Message = { id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), sender: 'user', text: input.trim(), timestamp: Date.now() }; const nextMessages = [...messages, userMsg]; setMessages(nextMessages); MemoryService.saveMessage(character.id, userMsg); setInput(''); setIsTyping(true); setState('thinking'); try { const result = await ApiService.sendMessage(userMsg.text, character.id, appState.provider, appState.model, nextMessages); const characterMsg: Message = { id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + 1), sender: 'character', text: result.response, timestamp: Date.now() }; setMessages((current) => [...current, characterMsg]); MemoryService.saveMessage(character.id, characterMsg); await speak(characterMsg.text); } catch (error) { console.error('Chat request failed', error); setState('error'); const errorMsg: Message = { id: 'error-' + Date.now(), sender: 'character', text: error instanceof Error ? error.message : 'ارتباط با سرویس پاسخ‌گو ناموفق بود.', timestamp: Date.now() }; setMessages((current) => [...current, errorMsg]); window.setTimeout(() => setState('idle'), 2500); } finally { setIsTyping(false); } };
+  const toggleListening = () => { if (isListening) { VoiceService.stopListening(); setIsListening(false); setState('idle'); return; } const recognition = VoiceService.initSpeechToText((text) => setInput((current) => (current ? current + ' ' : '') + text), (message) => { setIsListening(false); setState('error'); window.setTimeout(() => setState('idle'), 2500); console.warn(message); }, () => { setIsListening(false); if (!isTyping) setState('idle'); }); if (!recognition || !VoiceService.startListening()) { setIsListening(false); setState('error'); window.setTimeout(() => setState('idle'), 2500); return; } setIsListening(true); setState('listening'); };
+  const repeatLast = async () => { const last = [...messages].reverse().find((item) => item.sender === 'character'); if (last) await speak(last.text); };
 
-  const handleSend = async () => {
-    if (!input.trim() || isTyping) return;
-
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      sender: 'user',
-      text: input,
-      timestamp: Date.now()
-    };
-
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-    MemoryService.saveMessage(character.id, userMsg);
-    setInput('');
-    setIsTyping(true);
-    setAvatarState('thinking');
-
-    try {
-      const response = await ApiService.sendMessage(
-        userMsg.text,
-        character.id,
-        appState.provider,
-        appState.model,
-        appState.openAiKey
-      );
-
-      const charMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        sender: 'character',
-        text: response.response,
-        timestamp: Date.now()
-      };
-
-      setMessages(prev => [...prev, charMsg]);
-      MemoryService.saveMessage(character.id, charMsg);
-      
-      setAvatarState('speaking');
-      VoiceService.speak(charMsg.text, 'fa-IR');
-      
-      // Reset avatar after speaking (rough estimate based on text length)
-      setTimeout(() => {
-        setAvatarState('idle');
-      }, charMsg.text.length * 100 + 1000);
-
-    } catch (err: any) {
-      console.error(err);
-      setAvatarState('error');
-      
-      const errorMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        sender: 'character',
-        text: `خطا در ارتباط: ${err.message || 'مشکلی پیش آمد'}`,
-        timestamp: Date.now()
-      };
-      setMessages(prev => [...prev, errorMsg]);
-      
-      setTimeout(() => setAvatarState('idle'), 3000);
-    } finally {
-      setIsTyping(false);
-    }
-  };
-
-  const toggleVoiceInput = () => {
-    if (isListening) {
-      VoiceService.stopListening();
-      setIsListening(false);
-      setAvatarState('idle');
-    } else {
-      setIsListening(true);
-      setAvatarState('listening');
-      VoiceService.initSpeechToText(
-        (text) => setInput(prev => prev + ' ' + text),
-        (err) => {
-          console.error(err);
-          setIsListening(false);
-          setAvatarState('error');
-          setTimeout(() => setAvatarState('idle'), 2000);
-        },
-        () => {
-          setIsListening(false);
-          setAvatarState('idle');
-        }
-      );
-      VoiceService.startListening();
-    }
-  };
-
-  return (
-    <div className="flex flex-col h-screen bg-[#1a0f2e] text-amber-50">
-      {/* Header */}
-      <header className="flex items-center justify-between p-4 bg-[#2a1b42]/80 backdrop-blur-md border-b border-[#4a3b62] z-10 shadow-md">
-        <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-full transition-colors flex items-center">
-          <ArrowRight className="w-6 h-6" />
-        </button>
-        <div className="flex flex-col items-center">
-          <h2 className="text-xl font-bold text-amber-400 font-serif">{character.displayName}</h2>
-          <span className="text-xs opacity-70">
-            {appState.provider === 'local' ? 'آفلاین' : appState.provider}
-          </span>
-        </div>
-        <button onClick={onOpenSettings} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-          <SettingsIcon className="w-6 h-6" />
-        </button>
-      </header>
-
-      {/* Main Chat Area */}
-      <main className="flex-1 overflow-hidden flex flex-col md:flex-row relative">
-        {/* Magical Background Elements */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-30">
-           <div className="absolute top-[20%] left-[10%] w-64 h-64 bg-purple-600 rounded-full mix-blend-screen filter blur-[100px] animate-pulse"></div>
-           <div className="absolute bottom-[20%] right-[10%] w-64 h-64 bg-amber-600 rounded-full mix-blend-screen filter blur-[100px] animate-pulse" style={{animationDelay: '2s'}}></div>
-        </div>
-
-        {/* Avatar Sidebar (Desktop) / Top section (Mobile) */}
-        <div className="md:w-1/3 flex flex-col items-center justify-center p-6 border-b md:border-b-0 md:border-l border-[#4a3b62]/50 bg-gradient-to-b from-[#1a0f2e] to-transparent z-10 relative">
-          <Avatar imageUrl={character.avatar} state={avatarState} size="xl" />
-          <div className="mt-6 text-center max-w-xs">
-            <p className="opacity-80 text-sm leading-relaxed hidden md:block">{character.description}</p>
-          </div>
-        </div>
-
-        {/* Messages */}
-        <div className="flex-1 flex flex-col h-full bg-black/20 z-10">
-          <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            {messages.map((msg) => (
-              <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div 
-                  className={`max-w-[85%] md:max-w-[70%] p-4 rounded-2xl ${
-                    msg.sender === 'user' 
-                      ? 'bg-amber-600/90 text-white rounded-tr-sm shadow-[0_4px_15px_rgba(217,119,6,0.3)]' 
-                      : 'bg-[#2a1b42]/90 border border-[#4a3b62] text-amber-50 rounded-tl-sm shadow-[0_4px_15px_rgba(0,0,0,0.3)]'
-                  }`}
-                >
-                  <p className="leading-relaxed whitespace-pre-wrap">{msg.text}</p>
-                </div>
-              </div>
-            ))}
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="bg-[#2a1b42]/90 border border-[#4a3b62] p-4 rounded-2xl rounded-tl-sm flex space-x-2 space-x-reverse">
-                  <div className="w-2 h-2 bg-amber-400 rounded-full animate-bounce"></div>
-                  <div className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  <div className="w-2 h-2 bg-amber-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input Area */}
-          <div className="p-4 bg-[#1a0f2e]/90 backdrop-blur-md border-t border-[#4a3b62]">
-            <div className="flex items-end space-x-2 space-x-reverse max-w-4xl mx-auto">
-              <button 
-                onClick={toggleVoiceInput}
-                className={`p-3 rounded-full flex-shrink-0 transition-colors ${
-                  isListening ? 'bg-red-500 text-white animate-pulse' : 'bg-[#2a1b42] text-amber-400 hover:bg-[#3a2b52]'
-                }`}
-              >
-                {isListening ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-              </button>
-              
-              <div className="flex-1 relative">
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSend();
-                    }
-                  }}
-                  placeholder="پیام خود را بنویسید..."
-                  className="w-full bg-[#2a1b42] border border-[#4a3b62] rounded-2xl pl-12 pr-4 py-3 text-amber-50 focus:outline-none focus:border-amber-500 resize-none max-h-32 min-h-[48px]"
-                  rows={1}
-                  dir="auto"
-                />
-                <button 
-                  onClick={() => VoiceService.speak(messages[messages.length - 1]?.text || '')}
-                  className="absolute left-3 bottom-3 text-amber-50/50 hover:text-amber-400 transition-colors"
-                  title="تکرار آخرین پیام"
-                >
-                  <Volume2 className="w-5 h-5" />
-                </button>
-              </div>
-
-              <button 
-                onClick={handleSend}
-                disabled={!input.trim() || isTyping}
-                className="p-3 bg-amber-600 text-white rounded-full flex-shrink-0 hover:bg-amber-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <Send className="w-6 h-6" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
+  return <div className="flex h-screen flex-col bg-[#12091f] text-amber-50"><header className="flex items-center justify-between border-b border-white/10 bg-[#241437]/80 p-4 shadow-lg backdrop-blur-md"><button type="button" onClick={onBack} className="rounded-full p-2 transition hover:bg-white/10" aria-label="بازگشت"><ArrowRight className="h-6 w-6" /></button><div className="text-center"><h2 className="font-serif text-xl font-bold text-amber-300">{character.displayName}</h2><span className="text-xs text-amber-50/50">{appState.provider === 'local' ? 'آفلاین' : appState.provider + ' · ' + appState.model}</span></div><button type="button" onClick={onOpenSettings} className="rounded-full p-2 transition hover:bg-white/10" aria-label="تنظیمات"><SettingsIcon className="h-5 w-5" /></button></header><main className="relative flex flex-1 flex-col overflow-hidden md:flex-row"><div className="pointer-events-none absolute inset-0 opacity-20"><div className="absolute left-10 top-1/4 h-72 w-72 rounded-full bg-violet-700 blur-3xl" /><div className="absolute bottom-0 right-10 h-72 w-72 rounded-full bg-amber-700 blur-3xl" /></div><aside className="z-10 flex shrink-0 flex-col items-center justify-center border-b border-white/10 bg-gradient-to-b from-[#1d1030] to-transparent p-5 md:w-[36%] md:border-b-0 md:border-l"><Avatar character={character} state={avatarState} size="xl" /><div className="mt-10 max-w-xs text-center"><h3 className="text-lg font-bold text-amber-200">{character.name}</h3><p className="mt-2 text-sm leading-6 text-amber-50/60">{character.description}</p><p className="mt-4 text-xs text-amber-300/50">{character.personality.tone}</p></div></aside><section className="z-10 flex min-h-0 flex-1 flex-col bg-black/10"><div className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">{messages.map((message) => <div key={message.id} className={'flex ' + (message.sender === 'user' ? 'justify-end' : 'justify-start')}><div className={'max-w-[88%] rounded-2xl p-4 leading-7 shadow-lg sm:max-w-[72%] ' + (message.sender === 'user' ? 'rounded-tr-sm bg-amber-600 text-white' : 'rounded-tl-sm border border-white/10 bg-[#2a1740]/90 text-amber-50')}><p className="whitespace-pre-wrap">{message.text}</p></div></div>)}{isTyping && <div className="flex justify-start"><div className="flex gap-2 rounded-2xl rounded-tl-sm border border-white/10 bg-[#2a1740] p-4"><i className="h-2 w-2 animate-bounce rounded-full bg-amber-300" /><i className="h-2 w-2 animate-bounce rounded-full bg-amber-300 [animation-delay:150ms]" /><i className="h-2 w-2 animate-bounce rounded-full bg-amber-300 [animation-delay:300ms]" /></div></div>}<div ref={messagesEndRef} /></div><div className="border-t border-white/10 bg-[#1b0e2b]/90 p-3 backdrop-blur-md sm:p-4"><div className="mx-auto flex max-w-4xl items-end gap-2"><button type="button" onClick={toggleListening} className={'shrink-0 rounded-full p-3 transition ' + (isListening ? 'bg-rose-500 text-white' : 'bg-[#2a1740] text-amber-300 hover:bg-[#3a2550]')} aria-label={isListening ? 'توقف ضبط صدا' : 'ضبط صدا'}>{isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}</button><div className="relative flex-1"><textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSend(); } }} placeholder="پیامت را اینجا بنویس..." className="min-h-12 max-h-32 w-full resize-none rounded-2xl border border-white/10 bg-[#2a1740] px-4 py-3 pl-12 text-amber-50 outline-none focus:border-amber-300/70" rows={1} dir="auto" /><button type="button" onClick={() => void repeatLast()} className="absolute bottom-3 left-3 text-amber-50/40 transition hover:text-amber-300" title="پخش دوباره‌ی آخرین پاسخ"><Volume2 className="h-5 w-5" /></button></div><button type="button" onClick={() => void handleSend()} disabled={!input.trim() || isTyping} className="shrink-0 rounded-full bg-amber-500 p-3 text-[#21102e] transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40" aria-label="ارسال"><Send className="h-5 w-5" /></button></div></div></section></main></div>;
 }
