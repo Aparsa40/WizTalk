@@ -1,38 +1,14 @@
-import { Message, Provider } from '../types';
+import { Character, Message, Provider, ProviderConfig } from '../types';
+
+export interface ChatResponse { response: string; provider: Provider; model: string; }
+async function parseError(response: Response): Promise<Error> { try { const data = await response.json() as { error?: string }; return new Error(data.error || 'درخواست ناموفق بود.'); } catch { return new Error('ارتباط با سرور ناموفق بود.'); } }
 
 export class ApiService {
-  static async getCharacters() {
-    const res = await fetch('/api/characters');
-    if (!res.ok) throw new Error('Failed to fetch characters');
-    return res.json();
-  }
-
-  static async sendMessage(
-    message: string, 
-    characterId: string, 
-    provider: Provider, 
-    model: string, 
-    openAiKey?: string
-  ) {
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        message,
-        characterId,
-        provider,
-        model,
-        openAiKey
-      })
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to generate response');
-    }
-
-    return res.json();
+  static async getCharacters(): Promise<Character[]> { const response = await fetch('/api/characters'); if (!response.ok) throw await parseError(response); return await response.json() as Character[]; }
+  static async getModels(): Promise<ProviderConfig[]> { const response = await fetch('/api/models'); if (!response.ok) throw await parseError(response); return await response.json() as ProviderConfig[]; }
+  static async sendMessage(message: string, characterId: string, provider: Provider, model: string, history: Message[] = [], character?: Character): Promise<ChatResponse> {
+    const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, characterId, provider, model, history: history.slice(-12), character: character?.source === 'custom' ? character : undefined }) });
+    if (!response.ok) throw await parseError(response);
+    return await response.json() as ChatResponse;
   }
 }

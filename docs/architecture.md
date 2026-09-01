@@ -1,20 +1,10 @@
-# WizTalk Architecture
+# Architecture
 
-## Overview
-WizTalk is a local-first, character-based conversational AI web application designed around the Harry Potter universe for its initial release.
+WizTalk uses a React/Vite client and an Express server. The client owns presentation and browser-local state. The server owns built-in data loading and provider credentials.
 
-## Stack
-- Frontend: React 19, Vite, Tailwind CSS, TypeScript
-- Backend: Express (Proxying requests securely)
-- State Management: Local React State + `localStorage`
-- Theming: Custom dark/magical theme, RTL, Vazirmatn font
+The main flow is Character selection, Avatar presentation, Conversation. ChatUI does not contain Harry, Hermione, Ron, or provider-specific API calls. It receives a Character and calls ApiService.
 
-## Directory Structure
-- `src/components/`: Reusable React UI blocks (Avatar, Chat, Settings).
-- `src/services/`: Abstractions over APIs, Voice, and Memory.
-- `src/types/`: Centralized interfaces.
-- `server.ts`: Secure backend for AI Provider routing and serving frontend build.
-- `data/`: Local storage for Characters and FAQs.
+Domain types live in src/types. Storage and external providers are behind services. server/services/characters.ts loads and normalizes JSON. server/services/ai.ts implements the Local, Gemini, and OpenAI adapters. This boundary leaves room for a database adapter and additional providers.
 
-## Extensibility
-The chat engine and AI providers are loosely coupled. The backend securely abstracts OpenAI and Gemini endpoints, enabling easy replacement.
+Implemented: modular character, AI, avatar, voice, and memory layers; health and model endpoints; production-aware Express startup.
+Planned: authenticated users, shared character storage, database persistence, and real-time collaboration.

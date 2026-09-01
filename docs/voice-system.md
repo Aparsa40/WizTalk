@@ -1,12 +1,7 @@
 # Voice System
 
-The Voice System in V1 leverages standard browser APIs to provide an immersive experience without heavy external dependencies.
+VoiceService wraps browser Speech Recognition and Speech Synthesis. It checks support before use, maps common microphone errors to Persian messages, and exposes start, stop, abort, speak, and stopSpeaking operations.
 
-## Speech-to-Text (STT)
-Uses `window.SpeechRecognition` (or webkit prefix). It is configured for Persian (`fa-IR`) input.
-Located in `src/services/voice.ts`.
-Limitations: Only supported on certain browsers (like Chrome/Edge).
+ChatUI transitions AvatarAnimationController through listening, thinking, speaking, idle, and error. Text responses and audio responses remain separate: when TTS is disabled, the avatar still shows a short speaking state without claiming that audio or lip-sync occurred.
 
-## Text-to-Speech (TTS)
-Uses `window.speechSynthesis`. Automatically looks for a Persian voice installed on the user's OS.
-Provides verbal feedback for AI responses.
+Implemented: fa-IR recognition and synthesis where the browser supports them. Limitations: browser permission, browser engine, microphone, and installed voice availability vary. Phoneme-level lip-sync is future work.

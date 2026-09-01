@@ -1,19 +1,7 @@
 # AI Providers
 
-WizTalk features a pluggable AI provider architecture:
+server/services/ai.ts exposes a provider abstraction for Local, Gemini, and OpenAI. The client only selects a provider and an allow-listed model; provider SDKs are never imported into browser components.
 
-## 1. Local Provider
-- Offline fallback using predefined Q&A from `data/faq/faqs.json`.
-- Quick matching based on keyword occurrence.
+Local uses keyword matching against data/faq/faqs.json and works without a network or API key. Gemini uses GEMINI_API_KEY. OpenAI uses OPENAI_API_KEY. Both cloud keys are read only by the server.
 
-## 2. Gemini Provider
-- Connects securely via the Express backend to Google's Generative AI.
-- Requires `GEMINI_API_KEY` in `.env`.
-- Default Model: `gemini-2.5-flash`
-
-## 3. OpenAI Provider
-- Connects via the OpenAI Node SDK on the Express backend.
-- API Key is supplied via the client-side Settings modal for flexible configuration (or easily moved to env).
-- Default Model: `gpt-4o-mini`
-
-Adding future providers only requires extending `server.ts` and updating the `Provider` type in `/src/types/index.ts`.
+Models are configuration, not fake installable resources. The /api/models endpoint exposes the current supported model list. Add a provider by implementing its adapter and adding its configuration without changing ChatUI.

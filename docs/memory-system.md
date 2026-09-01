@@ -1,10 +1,7 @@
 # Memory System
 
-V1 uses standard `localStorage` as a fast, offline-capable persistence layer.
+MemoryStore defines the persistence contract. LocalStorageMemory is the V1 implementation and stores messages per character under a namespaced key, plus app settings and the user profile.
 
-## Implementation
-Located in `src/services/memory.ts`.
-Data is isolated per character (`wiztalk_messages_${characterId}`) to ensure clean context separation.
+Reads and writes are guarded against malformed JSON and storage failures. This keeps the UI usable when browser storage is unavailable or corrupted.
 
-## Future Path
-The MemoryService class methods (e.g., `getMessages`, `saveMessage`) serve as a clean abstraction. Migrating to IndexedDB or a Cloud Database (like Firebase/Supabase) only requires rewriting this class's internal logic, leaving the React components untouched.
+Implemented: local persistence and per-character separation. Planned: IndexedDB or a database adapter for larger histories, accounts, and cross-device synchronization.
