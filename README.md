@@ -2,6 +2,12 @@
 
 WizTalk is a Persian-first, local-first conversational application where people chat with configurable AI characters. The V1 implementation keeps the original Harry, Hermione, and Ron experience while making characters, providers, avatars, voice, and memory replaceable modules.
 
+## Version
+
+**Current Release:** v1.0.0  
+**Release Date:** 2026-09-01  
+**Status:** Stable Baseline
+
 ## Implemented
 - React 19, Vite, TypeScript, Express, and Tailwind CSS 4.
 - RTL Persian interface with responsive desktop, tablet, and mobile layouts.
