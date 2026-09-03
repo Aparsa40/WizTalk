@@ -1,4 +1,3 @@
-```ts
 export type Provider =
   | 'local'
   | 'gemini'
@@ -90,4 +89,3 @@ export interface ProviderConfig {
   models: string[];
   requiresServerKey: boolean;
 }
-```
