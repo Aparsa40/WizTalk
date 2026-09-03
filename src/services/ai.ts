@@ -1,4 +1,3 @@
-```ts
 import { Provider, ProviderConfig } from '../types';
 
 export const PROVIDER_CONFIGS: ProviderConfig[] = [
@@ -64,4 +63,3 @@ export function getDefaultModel(
 ): string {
   return getProviderConfig(provider).defaultModel;
 }
-```
