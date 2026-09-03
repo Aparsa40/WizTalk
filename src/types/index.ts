@@ -1,5 +1,15 @@
-export type Provider = 'local' | 'gemini' | 'openai';
-export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'error';
+export type Provider =
+  | 'local'
+  | 'gemini'
+  | 'openai'
+  | 'openrouter';
+
+export type AvatarState =
+  | 'idle'
+  | 'listening'
+  | 'thinking'
+  | 'speaking'
+  | 'error';
 
 export interface PersonalityConfig {
   description: string;
@@ -9,7 +19,11 @@ export interface PersonalityConfig {
 }
 
 export interface AvatarConfig {
-  type: 'portrait' | 'illustration' | 'svg' | 'video';
+  type:
+    | 'portrait'
+    | 'illustration'
+    | 'svg'
+    | 'video';
   source: string;
   idleSource?: string;
   listeningSource?: string;

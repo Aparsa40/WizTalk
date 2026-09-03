@@ -2,8 +2,17 @@ import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
-import { getCharacter, listCharacters, normalizeCharacter, ServerCharacter } from './server/services/characters';
-import { generateResponse, providerConfigs, Provider } from './server/services/ai';
+import {
+  getCharacter,
+  listCharacters,
+  normalizeCharacter,
+  ServerCharacter,
+} from './server/services/characters';
+import {
+  generateResponse,
+  providerConfigs,
+  Provider,
+} from './server/services/ai';
 
 dotenv.config();
 
@@ -13,7 +22,12 @@ app.use(express.json({ limit: '64kb' }));
 
 const PORT = Number(process.env.PORT) || 3000;
 
-const providers = new Set<Provider>(['local', 'gemini', 'openai']);
+const providers = new Set<Provider>([
+  'local',
+  'gemini',
+  'openai',
+  'openrouter',
+]);
 
 app.get('/api/health', (_req, res) => {
   res.json({
@@ -37,16 +51,14 @@ app.get('/api/models', (_req, res) => {
   res.json(providerConfigs);
 });
 
-
 app.post('/api/chat', async (req, res) => {
-
   const {
     message,
     characterId,
     provider,
     model,
     history,
-    character: clientCharacter
+    character: clientCharacter,
   } = req.body as {
     message?: unknown;
     characterId?: unknown;
@@ -56,34 +68,29 @@ app.post('/api/chat', async (req, res) => {
     character?: Record<string, any>;
   };
 
-
   if (typeof message !== 'string' || !message.trim()) {
     return res.status(400).json({
-      error: 'پیام نمی‌تواند خالی باشد.'
+      error: 'پیام نمی‌تواند خالی باشد.',
     });
   }
-
 
   if (typeof characterId !== 'string') {
     return res.status(400).json({
-      error: 'شخصیت انتخاب نشده است.'
+      error: 'شخصیت انتخاب نشده است.',
     });
   }
-
 
   if (
     typeof provider !== 'string' ||
     !providers.has(provider as Provider)
   ) {
     return res.status(400).json({
-      error: 'ارائه‌دهنده‌ی هوش مصنوعی نامعتبر است.'
+      error: 'ارائه‌دهنده‌ی هوش مصنوعی نامعتبر است.',
     });
   }
 
-
   let character: ServerCharacter | null =
     await getCharacter(characterId);
-
 
   if (
     !character &&
@@ -94,37 +101,32 @@ app.post('/api/chat', async (req, res) => {
     character = normalizeCharacter(clientCharacter, 'custom');
   }
 
-
   if (!character) {
     return res.status(404).json({
-      error: 'شخصیت پیدا نشد.'
+      error: 'شخصیت پیدا نشد.',
     });
   }
 
-
-  const safeHistory =
-    Array.isArray(history)
-      ? history
-          .filter(
-            (
-              item
-            ): item is {
-              sender: 'user' | 'character';
-              text: string;
-            } =>
-              Boolean(
-                item &&
+  const safeHistory = Array.isArray(history)
+    ? history
+        .filter(
+          (
+            item
+          ): item is {
+            sender: 'user' | 'character';
+            text: string;
+          } =>
+            Boolean(
+              item &&
                 (item.sender === 'user' ||
-                 item.sender === 'character') &&
+                  item.sender === 'character') &&
                 typeof item.text === 'string'
-              )
-          )
-          .slice(-12)
-      : [];
-
+            )
+        )
+        .slice(-12)
+    : [];
 
   try {
-
     const result = await generateResponse({
       message: message.trim(),
       character,
@@ -133,46 +135,33 @@ app.post('/api/chat', async (req, res) => {
         typeof model === 'string'
           ? model
           : undefined,
-      history: safeHistory
+      history: safeHistory,
     });
 
-
     res.json(result);
-
-
   } catch (error) {
-
     console.error('Chat provider error', error);
 
     res.status(502).json({
       error:
         error instanceof Error
           ? error.message
-          : 'ارتباط با سرویس هوش مصنوعی ناموفق بود.'
+          : 'ارتباط با سرویس هوش مصنوعی ناموفق بود.',
     });
-
   }
-
 });
 
-
 async function startServer(): Promise<void> {
-
   if (process.env.NODE_ENV !== 'production') {
-
-    const vite =
-      await createViteServer({
-        server: {
-          middlewareMode: true
-        },
-        appType: 'spa'
-      });
-
+    const vite = await createViteServer({
+      server: {
+        middlewareMode: true,
+      },
+      appType: 'spa',
+    });
 
     app.use(vite.middlewares);
-
   } else {
-
     const distPath =
       path.join(process.cwd(), 'dist');
 
@@ -183,9 +172,7 @@ async function startServer(): Promise<void> {
         path.join(distPath, 'index.html')
       )
     );
-
   }
-
 
   app.listen(
     PORT,
@@ -195,17 +182,13 @@ async function startServer(): Promise<void> {
         `WizTalk server listening on http://0.0.0.0:${PORT}`
       )
   );
-
 }
 
-
 startServer().catch((error) => {
-
   console.error(
     'Could not start WizTalk',
     error
   );
 
   process.exit(1);
-
 });
