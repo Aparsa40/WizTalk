@@ -1,4 +1,3 @@
-```typescript
 import express from 'express';
 import path from 'path';
 import { rateLimit } from 'express-rate-limit';
@@ -208,4 +207,3 @@ startServer().catch((error) => {
 
   process.exit(1);
 });
-```
