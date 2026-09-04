@@ -1,5 +1,7 @@
+```typescript
 import express from 'express';
 import path from 'path';
+import { rateLimit } from 'express-rate-limit';
 import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import {
@@ -29,6 +31,16 @@ const providers = new Set<Provider>([
   'openrouter',
 ]);
 
+const chatRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: {
+    error: 'تعداد درخواست‌ها بیش از حد مجاز است. لطفاً کمی بعد دوباره تلاش کنید.',
+  },
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
@@ -51,7 +63,7 @@ app.get('/api/models', (_req, res) => {
   res.json(providerConfigs);
 });
 
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', chatRateLimiter, async (req, res) => {
   const {
     message,
     characterId,
@@ -92,8 +104,11 @@ app.post('/api/chat', async (req, res) => {
   let character: ServerCharacter | null =
     await getCharacter(characterId);
 
-  if (
-    !character &&
+  let trustedSystemInstructions: string | undefined;
+
+  if (character) {
+    trustedSystemInstructions = character.systemInstructions;
+  } else if (
     clientCharacter?.source === 'custom' &&
     clientCharacter.id === characterId &&
     typeof clientCharacter.systemInstructions === 'string'
@@ -136,6 +151,7 @@ app.post('/api/chat', async (req, res) => {
           ? model
           : undefined,
       history: safeHistory,
+      trustedSystemInstructions,
     });
 
     res.json(result);
@@ -192,3 +208,4 @@ startServer().catch((error) => {
 
   process.exit(1);
 });
+```
