@@ -1,4 +1,3 @@
-```typescript
 import { GoogleGenAI } from "@google/genai";
 import OpenAI from "openai";
 import { findLocalAnswer } from "./faq";
@@ -306,4 +305,3 @@ export async function generateResponse(
     model,
   };
 }
-```
