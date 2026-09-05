@@ -40,6 +40,16 @@ const chatRateLimiter = rateLimit({
   },
 });
 
+const staticRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: {
+    error: 'تعداد درخواست‌ها برای بارگذاری صفحه بیش از حد مجاز است. لطفاً کمی بعد دوباره تلاش کنید.',
+  },
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
@@ -182,7 +192,7 @@ async function startServer(): Promise<void> {
 
     app.use(express.static(distPath));
 
-    app.get('*', (_req, res) =>
+    app.get('*', staticRateLimiter, (_req, res) =>
       res.sendFile(
         path.join(distPath, 'index.html')
       )
