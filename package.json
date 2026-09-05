@@ -17,9 +17,11 @@
     "@vitejs/plugin-react": "^5.0.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.7.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
     "openai": "^7.8.0",
+    "qs": "^6.16.0",
     "react": "^19.0.1",
     "react-dom": "^19.0.1",
     "vite": "^6.2.3"
