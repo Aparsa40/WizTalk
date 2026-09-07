@@ -13,10 +13,14 @@ import {
   AvatarState,
   Character,
   Message,
+  VoiceEvent,
 } from '../types';
 
 import { ApiService } from '../services/api';
-import { Avatar } from './Avatar';
+import {
+  Avatar,
+  type AvatarMouthShape,
+} from './Avatar';
 import { AvatarAnimationController } from '../services/avatar';
 import { MemoryService } from '../services/memory';
 import { VoiceService } from '../services/voice-advanced';
@@ -32,30 +36,22 @@ interface ChatUIProps {
   onOpenSettings: () => void;
 }
 
-type AvatarMouthShape =
-  | 'closed'
-  | 'small'
-  | 'medium'
-  | 'smile'
-  | 'pursed';
-
 /**
- * Converts the internal lip-sync mouth states
- * into the mouth states supported by the Avatar component.
- *
- * Avatar currently does not expose a separate "large" mouth shape,
- * therefore "open-large" intentionally maps to "medium".
+ * Converts internal lip-sync mouth states
+ * into the mouth states supported by Avatar.
  */
-const mapMouthShape = (shape: MouthShape): AvatarMouthShape => {
+const mapMouthShape = (
+  shape: MouthShape,
+): AvatarMouthShape => {
   switch (shape) {
     case 'open-small':
-      return 'small';
+      return 'open-small';
 
     case 'open-medium':
-      return 'medium';
+      return 'open-medium';
 
     case 'open-large':
-      return 'medium';
+      return 'open-large';
 
     case 'smile':
       return 'smile';
@@ -221,11 +217,9 @@ export function ChatUI({
    * advanced VoiceService and forwards them
    * to the LipSyncCoordinator.
    */
-  const handleVoiceEvent = (event: Parameters<
-    NonNullable<
-      Parameters<typeof VoiceService.speak>[2]
-    >
-  >[0]) => {
+  const handleVoiceEvent = (
+    event: VoiceEvent,
+  ) => {
     lipSyncCoordinator.current?.processVoiceEvent(
       event,
     );

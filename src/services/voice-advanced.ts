@@ -235,7 +235,7 @@ export class VoiceService {
       utterance.lang = voiceConfig.language || 'fa-IR';
 
       utterance.rate = this.clamp(
-        voiceConfig.speechRate ?? 0.95,
+        voiceConfig.speechRate ?? voiceConfig.rate ?? 0.95,
         0.5,
         2
       );
@@ -301,6 +301,8 @@ export class VoiceService {
           type,
           characterId: character.id,
           timestamp: Date.now(),
+          source: 'browser',
+          measured: false,
           ...extra,
         };
 
@@ -432,9 +434,10 @@ export class VoiceService {
    * Priority:
    * 1. Exact voiceURI
    * 2. Exact voice name
-   * 3. Persian voice
+   * 3. Exact language
    * 4. Same language
-   * 5. Any available voice
+   * 5. Persian voice
+   * 6. Any available voice
    */
   private static findBestVoice(
     config: VoiceConfig
