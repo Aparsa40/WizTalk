@@ -2,19 +2,20 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AvatarState, Character } from '../types';
 import { avatarStateLabels } from '../services/avatar';
 
+export type AvatarMouthShape =
+  | 'closed'
+  | 'open-small'
+  | 'open-medium'
+  | 'open-large'
+  | 'smile'
+  | 'pursed';
+
 interface AvatarProps {
   character: Character;
   state: AvatarState;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  mouthShape?: AvatarMouthShape;
 }
-
-type MouthShape =
-  | 'closed'
-  | 'small'
-  | 'medium'
-  | 'large'
-  | 'smile'
-  | 'pursed';
 
 const sizes = {
   sm: {
@@ -67,23 +68,23 @@ const stateStyles: Record<
 function HarryMouth({
   shape,
 }: {
-  shape: MouthShape;
+  shape: AvatarMouthShape;
 }) {
   const mouth = useMemo(() => {
     switch (shape) {
-      case 'large':
+      case 'open-large':
         return {
           d: 'M 133 245 Q 160 270 187 245 Q 160 290 133 245',
           fill: '#160b16',
         };
 
-      case 'medium':
+      case 'open-medium':
         return {
           d: 'M 139 246 Q 160 265 181 246 Q 160 276 139 246',
           fill: '#160b16',
         };
 
-      case 'small':
+      case 'open-small':
         return {
           d: 'M 145 248 Q 160 258 175 248 Q 160 265 145 248',
           fill: '#160b16',
@@ -127,7 +128,7 @@ function HarryAvatar({
   blink,
 }: {
   state: AvatarState;
-  mouthShape: MouthShape;
+  mouthShape: AvatarMouthShape;
   blink: boolean;
 }) {
   const speaking = state === 'speaking';
@@ -144,22 +145,22 @@ function HarryAvatar({
       preserveAspectRatio="xMidYMid meet"
     >
       <defs>
-        <linearGradient id="robe" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id="harry-robe" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#21152d" />
           <stop offset="100%" stopColor="#0c0914" />
         </linearGradient>
 
-        <linearGradient id="skin" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="harry-skin" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#f4c7a7" />
           <stop offset="100%" stopColor="#d99e7c" />
         </linearGradient>
 
-        <radialGradient id="background">
+        <radialGradient id="harry-background">
           <stop offset="0%" stopColor="#4c2b68" />
           <stop offset="100%" stopColor="#110b1b" />
         </radialGradient>
 
-        <filter id="shadow">
+        <filter id="harry-shadow">
           <feDropShadow
             dx="0"
             dy="12"
@@ -175,20 +176,19 @@ function HarryAvatar({
         width="304"
         height="404"
         rx="48"
-        fill="url(#background)"
+        fill="url(#harry-background)"
       />
 
       {/* shoulders / robe */}
       <g
         style={{
           transformOrigin: '160px 360px',
-          animation:
-            'harryBreathing 3.8s ease-in-out infinite',
+          animation: 'harryBreathing 3.8s ease-in-out infinite',
         }}
       >
         <path
           d="M 66 420 Q 70 335 116 315 L 204 315 Q 250 335 254 420 Z"
-          fill="url(#robe)"
+          fill="url(#harry-robe)"
           stroke="#8a6aa8"
           strokeWidth="2"
         />
@@ -210,7 +210,7 @@ function HarryAvatar({
       {/* neck */}
       <path
         d="M 139 290 L 139 327 Q 160 340 181 327 L 181 290 Z"
-        fill="url(#skin)"
+        fill="url(#harry-skin)"
       />
 
       {/* head movement */}
@@ -233,13 +233,26 @@ function HarryAvatar({
           cy="190"
           rx="78"
           ry="105"
-          fill="url(#skin)"
-          filter="url(#shadow)"
+          fill="url(#harry-skin)"
+          filter="url(#harry-shadow)"
         />
 
         {/* ears */}
-        <ellipse cx="84" cy="198" rx="13" ry="23" fill="#dda582" />
-        <ellipse cx="236" cy="198" rx="13" ry="23" fill="#dda582" />
+        <ellipse
+          cx="84"
+          cy="198"
+          rx="13"
+          ry="23"
+          fill="#dda582"
+        />
+
+        <ellipse
+          cx="236"
+          cy="198"
+          rx="13"
+          ry="23"
+          fill="#dda582"
+        />
 
         {/* hair */}
         <path
@@ -278,11 +291,29 @@ function HarryAvatar({
           stroke="#17131c"
           strokeWidth="6"
         >
-          <circle cx="125" cy="190" r="29" />
-          <circle cx="195" cy="190" r="29" />
-          <path d="M 154 190 Q 160 184 166 190" />
-          <path d="M 96 190 L 83 184" />
-          <path d="M 224 190 L 237 184" />
+          <circle
+            cx="125"
+            cy="190"
+            r="29"
+          />
+
+          <circle
+            cx="195"
+            cy="190"
+            r="29"
+          />
+
+          <path
+            d="M 154 190 Q 160 184 166 190"
+          />
+
+          <path
+            d="M 96 190 L 83 184"
+          />
+
+          <path
+            d="M 224 190 L 237 184"
+          />
         </g>
 
         {/* eyes */}
@@ -311,8 +342,19 @@ function HarryAvatar({
 
           {!blink && (
             <>
-              <circle cx="122" cy="187" r="2.5" fill="#fff" />
-              <circle cx="192" cy="187" r="2.5" fill="#fff" />
+              <circle
+                cx="122"
+                cy="187"
+                r="2.5"
+                fill="#fff"
+              />
+
+              <circle
+                cx="192"
+                cy="187"
+                r="2.5"
+                fill="#fff"
+              />
             </>
           )}
         </g>
@@ -357,7 +399,8 @@ function HarryAvatar({
             strokeWidth="2"
             opacity=".65"
             style={{
-              animation: 'harryMouthGlow .45s ease-in-out infinite',
+              animation:
+                'harryMouthGlow .45s ease-in-out infinite',
             }}
           />
         )}
@@ -372,7 +415,8 @@ function HarryAvatar({
             r="3"
             fill="#fbbf24"
             style={{
-              animation: 'harrySpark 1.7s ease-in-out infinite',
+              animation:
+                'harrySpark 1.7s ease-in-out infinite',
             }}
           />
 
@@ -382,7 +426,8 @@ function HarryAvatar({
             r="3"
             fill="#a78bfa"
             style={{
-              animation: 'harrySpark 2.1s ease-in-out infinite',
+              animation:
+                'harrySpark 2.1s ease-in-out infinite',
             }}
           />
 
@@ -392,7 +437,8 @@ function HarryAvatar({
             r="2"
             fill="#67e8f9"
             style={{
-              animation: 'harrySpark 1.9s ease-in-out infinite',
+              animation:
+                'harrySpark 1.9s ease-in-out infinite',
             }}
           />
         </g>
@@ -405,27 +451,37 @@ export function Avatar({
   character,
   state,
   size = 'lg',
+  mouthShape,
 }: AvatarProps) {
-  const [mouthShape, setMouthShape] =
-    useState<MouthShape>('closed');
-
   const [blink, setBlink] = useState(false);
 
   const dimension = sizes[size];
   const style = stateStyles[state];
 
+  /*
+   * If the lip-sync coordinator has not supplied a mouth shape yet,
+   * speaking gets a neutral medium opening. Other states remain closed.
+   */
+  const resolvedMouthShape: AvatarMouthShape =
+    mouthShape ??
+    (state === 'speaking'
+      ? 'open-medium'
+      : 'closed');
+
   useEffect(() => {
     let mounted = true;
+    let blinkTimer: number | undefined;
+    let closeTimer: number | undefined;
 
     const blinkLoop = () => {
       const delay = 2800 + Math.random() * 3000;
 
-      window.setTimeout(() => {
+      blinkTimer = window.setTimeout(() => {
         if (!mounted) return;
 
         setBlink(true);
 
-        window.setTimeout(() => {
+        closeTimer = window.setTimeout(() => {
           if (mounted) {
             setBlink(false);
           }
@@ -439,37 +495,16 @@ export function Avatar({
 
     return () => {
       mounted = false;
+
+      if (blinkTimer !== undefined) {
+        window.clearTimeout(blinkTimer);
+      }
+
+      if (closeTimer !== undefined) {
+        window.clearTimeout(closeTimer);
+      }
     };
   }, []);
-
-  useEffect(() => {
-    if (state !== 'speaking') {
-      setMouthShape('closed');
-      return;
-    }
-
-    const shapes: MouthShape[] = [
-      'small',
-      'medium',
-      'large',
-      'medium',
-      'small',
-      'closed',
-      'medium',
-    ];
-
-    let index = 0;
-
-    const interval = window.setInterval(() => {
-      setMouthShape(shapes[index % shapes.length]);
-      index += 1;
-    }, 110);
-
-    return () => {
-      window.clearInterval(interval);
-      setMouthShape('closed');
-    };
-  }, [state]);
 
   return (
     <div
@@ -481,9 +516,10 @@ export function Avatar({
       }}
       data-character-id={character.id}
       data-avatar-state={state}
+      data-mouth-shape={resolvedMouthShape}
     >
       <div
-        className="absolute inset-0 rounded-[2rem] border-4 overflow-hidden"
+        className="absolute inset-0 overflow-hidden rounded-4xl border-4"
         style={{
           borderColor: style.border,
           boxShadow: `0 0 55px ${style.glow}`,
@@ -495,19 +531,19 @@ export function Avatar({
       >
         <HarryAvatar
           state={state}
-          mouthShape={mouthShape}
+          mouthShape={resolvedMouthShape}
           blink={blink}
         />
       </div>
 
       <div
-        className="absolute left-1/2 -bottom-4 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-200/20 bg-[#21142f]/95 px-4 py-1.5 text-xs text-amber-100 shadow-lg"
+        className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-200/20 bg-[#21142f]/95 px-4 py-1.5 text-xs text-amber-100 shadow-lg"
       >
         {avatarStateLabels[state]}
       </div>
 
       {state === 'listening' && (
-        <div className="absolute -inset-3 rounded-[2.5rem] border border-sky-300/30 animate-ping pointer-events-none" />
+        <div className="pointer-events-none absolute -inset-3 animate-ping rounded-[2.5rem] border border-sky-300/30" />
       )}
 
       {state === 'thinking' && (
@@ -528,6 +564,7 @@ export function Avatar({
             0%, 100% {
               transform: translateY(0) scale(1);
             }
+
             50% {
               transform: translateY(-2px) scale(1.008);
             }
@@ -537,11 +574,9 @@ export function Avatar({
             0%, 100% {
               transform: rotate(0deg) translateY(0);
             }
-            30% {
-              transform: rotate(-1deg) translateY(-1px);
-            }
-            70% {
-              transform: rotate(1deg) translateY(0);
+
+            50% {
+              transform: rotate(1.2deg) translateY(-1px);
             }
           }
 
@@ -549,47 +584,43 @@ export function Avatar({
             0%, 100% {
               transform: rotate(0deg) translateY(0);
             }
+
             50% {
-              transform: rotate(-2deg) translateY(-3px);
+              transform: rotate(-2deg) translateY(-2px);
             }
           }
 
           @keyframes harrySpeaking {
             0%, 100% {
-              transform: translateY(0) scale(1);
+              transform: rotate(0deg) translateY(0);
             }
+
             50% {
-              transform: translateY(-1px) scale(1.006);
+              transform: rotate(.8deg) translateY(-1px);
             }
           }
 
           @keyframes harryMouthGlow {
             0%, 100% {
-              opacity: .2;
-              transform: scale(.9);
+              opacity: .35;
+              transform: scale(.94);
             }
+
             50% {
               opacity: .8;
-              transform: scale(1.08);
+              transform: scale(1.04);
             }
           }
 
           @keyframes harrySpark {
             0%, 100% {
-              opacity: .2;
+              opacity: .25;
               transform: translateY(0) scale(.8);
             }
+
             50% {
               opacity: 1;
-              transform: translateY(-10px) scale(1.2);
-            }
-          }
-
-          @media (prefers-reduced-motion: reduce) {
-            * {
-              animation-duration: .01ms !important;
-              animation-iteration-count: 1 !important;
-              transition-duration: .01ms !important;
+              transform: translateY(-8px) scale(1.2);
             }
           }
         `}

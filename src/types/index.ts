@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 export type Provider =
   | 'local'
   | 'gemini'
@@ -143,7 +144,7 @@ export interface VoiceEvent {
  * Enables swapping renderers without changing Avatar controller or Character systems.
  */
 export interface AvatarRenderer {
-  render(state: AvatarState, config: AvatarConfig): JSX.Element;
+  render(state: AvatarState, config: AvatarConfig): ReactElement;
   preload?(config: AvatarConfig): Promise<void>;
 }
 
