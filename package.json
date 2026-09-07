@@ -1,8 +1,9 @@
 {
   "name": "WizTalk",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
+  "description": "WizTalk - Modular Interactive AI Character Platform with Avatar, Voice, and Lip-Sync Architecture",
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
@@ -32,10 +33,24 @@
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
     "autoprefixer": "^10.4.21",
     "esbuild": "^0.25.0",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2"
-  }
+  },
+  "keywords": [
+    "persian",
+    "ai",
+    "character",
+    "avatar",
+    "voice",
+    "chat",
+    "wizard",
+    "conversational"
+  ],
+  "author": "Amir Parsa",
+  "license": "MIT"
 }
