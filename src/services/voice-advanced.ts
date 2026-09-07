@@ -17,50 +17,65 @@ type VoiceRecognitionConstructor = new () => VoiceRecognition;
 export type VoiceEventListener = (event: VoiceEvent) => void;
 
 /**
- * Advanced Voice Service with character-specific configuration
- * 
- * Features:
- * - Per-character voice settings (voiceId, language, speechRate, pitch, volume)
- * - Browser Speech Recognition (STT) with fa-IR support
- * - Browser Speech Synthesis (TTS) with state tracking
- * - Voice event emissions for avatar and lip-sync synchronization
- * - Error handling with Persian error messages
- * - Support for future external voice providers
+ * Advanced browser voice service.
+ *
+ * Responsibilities:
+ * - Persian STT through browser SpeechRecognition
+ * - Character-specific browser TTS configuration
+ * - Word/boundary timing events for avatar animation
+ * - Voice lifecycle events
+ * - Safe fallback when Persian voices are unavailable
+ *
+ * Important:
+ * Browser SpeechSynthesis does NOT expose raw microphone/audio amplitude.
+ * Therefore this service does not pretend to provide real amplitude data.
+ * Boundary events are used for timing-based lip-sync.
+ *
+ * A future Piper/local-audio provider can provide real audio amplitude.
  */
 export class VoiceService {
   private static recognition: VoiceRecognition | null = null;
+
   private static voiceListeners = new Set<VoiceEventListener>();
-  private static isSpeaking = false;
+
+  private static isSpeakingState = false;
+
   private static currentUtterance: SpeechSynthesisUtterance | null = null;
 
-  /**
-   * Check if browser supports Speech Recognition
-   */
+  private static currentCharacterId: string | null = null;
+
+  private static speechStartedAt = 0;
+
+  // ---------------------------------------------------------------------------
+  // Speech Recognition / STT
+  // ---------------------------------------------------------------------------
+
   static isSpeechRecognitionSupported(): boolean {
-    return typeof window !== 'undefined' && Boolean(this.getRecognitionConstructor());
+    return (
+      typeof window !== 'undefined' &&
+      Boolean(this.getRecognitionConstructor())
+    );
   }
 
-  /**
-   * Get Speech Recognition constructor (supports both webkit and standard)
-   */
-  private static getRecognitionConstructor(): VoiceRecognitionConstructor | null {
-    if (typeof window === 'undefined') return null;
+  private static getRecognitionConstructor():
+    | VoiceRecognitionConstructor
+    | null {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
     const browserWindow = window as Window & {
       SpeechRecognition?: VoiceRecognitionConstructor;
       webkitSpeechRecognition?: VoiceRecognitionConstructor;
     };
-    return browserWindow.SpeechRecognition || browserWindow.webkitSpeechRecognition || null;
+
+    return (
+      browserWindow.SpeechRecognition ||
+      browserWindow.webkitSpeechRecognition ||
+      null
+    );
   }
 
-  /**
-   * Initialize Speech-to-Text (STT) with character-specific configuration
-   * 
-   * @param character - Character with voice configuration
-   * @param onResult - Callback when speech is recognized
-   * @param onError - Callback on error
-   * @param onEnd - Callback when recognition ends
-   * @returns Recognition object or null if not supported
-   */
   static initSpeechToText(
     character: Character,
     onResult: (text: string) => void,
@@ -68,13 +83,14 @@ export class VoiceService {
     onEnd: () => void
   ): VoiceRecognition | null {
     const Constructor = this.getRecognitionConstructor();
+
     if (!Constructor) {
       onError('مرورگر شما از تشخیص گفتار پشتیبانی نمی‌کند.');
       return null;
     }
 
     const recognition = new Constructor();
-    // Use character-specific voice language
+
     recognition.lang = character.voice.language || 'fa-IR';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
@@ -83,92 +99,104 @@ export class VoiceService {
       const resultEvent = event as {
         results?: ArrayLike<ArrayLike<{ transcript?: string }>>;
       };
+
       const text = resultEvent.results?.[0]?.[0]?.transcript?.trim();
-      if (text) onResult(text);
+
+      if (text) {
+        onResult(text);
+      }
     };
 
     recognition.onerror = (event) => {
       onError(this.describeRecognitionError(event.error));
     };
 
-    recognition.onend = onEnd;
+    recognition.onend = () => {
+      onEnd();
+    };
 
     this.recognition = recognition;
+
     return recognition;
   }
 
-  /**
-   * Get descriptive error message for speech recognition errors
-   */
   private static describeRecognitionError(error?: string): string {
     const errorMessages: Record<string, string> = {
       'not-allowed': 'اجازه‌ی دسترسی به میکروفون داده نشد.',
       'service-not-allowed': 'سرویس تشخیص گفتار غیرفعال است.',
       'audio-capture': 'میکروفون پیدا نشد یا در دسترس نیست.',
       'no-speech': 'صدایی دریافت نشد؛ دوباره تلاش کنید.',
-      'network': 'خطای شبکه در تشخیص گفتار.',
+      network: 'خطای شبکه در تشخیص گفتار.',
       'bad-grammar': 'خطا در تحلیل صوت.',
+      aborted: 'تشخیص گفتار متوقف شد.',
     };
-    return errorMessages[error || ''] || 'خطا در تشخیص گفتار.';
+
+    return (
+      errorMessages[error || ''] ||
+      'خطایی در تشخیص گفتار رخ داد.'
+    );
   }
 
-  /**
-   * Start listening for speech input
-   */
   static startListening(): boolean {
-    if (!this.recognition) return false;
+    if (!this.recognition) {
+      return false;
+    }
+
     try {
       this.recognition.start();
       return true;
     } catch (error) {
-      console.warn('Could not start speech recognition', error);
+      console.warn(
+        'Could not start speech recognition:',
+        error
+      );
+
       return false;
     }
   }
 
-  /**
-   * Stop listening for speech input
-   */
   static stopListening(): void {
     try {
       this.recognition?.stop();
     } catch (error) {
-      console.warn('Could not stop speech recognition', error);
+      console.warn(
+        'Could not stop speech recognition:',
+        error
+      );
     }
   }
 
-  /**
-   * Abort current speech recognition session
-   */
   static abortListening(): void {
     try {
       this.recognition?.abort();
     } catch (error) {
-      console.warn('Could not abort speech recognition', error);
+      console.warn(
+        'Could not abort speech recognition:',
+        error
+      );
     }
   }
 
-  /**
-   * Check if browser supports Speech Synthesis (TTS)
-   */
+  // ---------------------------------------------------------------------------
+  // Speech Synthesis / TTS
+  // ---------------------------------------------------------------------------
+
   static isSpeechSynthesisSupported(): boolean {
-    return typeof window !== 'undefined' && 'speechSynthesis' in window;
+    return (
+      typeof window !== 'undefined' &&
+      'speechSynthesis' in window
+    );
   }
 
-  /**
-   * Check if currently speaking
-   */
   static isSpeaking(): boolean {
-    return this.isSpeaking;
+    return this.isSpeakingState;
   }
 
   /**
-   * Speak text using character-specific voice configuration
-   * 
-   * @param text - Text to speak
-   * @param character - Character with voice configuration
-   * @param onVoiceEvent - Callback for voice events (for lip-sync)
-   * @returns Promise that resolves when speech ends
+   * Speak text using the character's configured browser voice.
+   *
+   * Boundary events are emitted as small timing units so the avatar can
+   * animate its mouth while the browser is speaking.
    */
   static speak(
     text: string,
@@ -177,172 +205,539 @@ export class VoiceService {
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.isSpeechSynthesisSupported()) {
-        reject(new Error('مرورگر شما از تبدیل متن به گفتار پشتیبانی نمی‌کند.'));
+        reject(
+          new Error(
+            'مرورگر شما از تبدیل متن به گفتار پشتیبانی نمی‌کند.'
+          )
+        );
+
+        return;
+      }
+
+      const cleanText = text.trim();
+
+      if (!cleanText) {
+        resolve();
         return;
       }
 
       const synthesis = window.speechSynthesis;
+
+      // Stop previous speech.
       synthesis.cancel();
 
-      const utterance = new SpeechSynthesisUtterance(text);
+      const utterance = new SpeechSynthesisUtterance(
+        cleanText
+      );
+
       const voiceConfig = character.voice;
 
-      // Apply character-specific voice configuration
       utterance.lang = voiceConfig.language || 'fa-IR';
-      utterance.rate = voiceConfig.speechRate ?? 1;
-      utterance.pitch = voiceConfig.pitch ?? 1;
-      utterance.volume = voiceConfig.volume ?? 1;
 
-      // Select voice based on character's voiceId or voiceName
-      const voices = synthesis.getVoices();
-      if (voiceConfig.voiceId) {
-        const selectedVoice = voices.find(
-          (v) => v.voiceURI === voiceConfig.voiceId
-        );
-        if (selectedVoice) utterance.voice = selectedVoice;
-      } else if (voiceConfig.voiceName) {
-        const selectedVoice = voices.find((v) => v.name === voiceConfig.voiceName);
-        if (selectedVoice) utterance.voice = selectedVoice;
-      } else {
-        // Fallback: find voice matching language
-        const languageVoice = voices.find((v) =>
-          v.lang.toLowerCase().startsWith(voiceConfig.language?.slice(0, 2).toLowerCase() || 'fa')
-        );
-        if (languageVoice) utterance.voice = languageVoice;
+      utterance.rate = this.clamp(
+        voiceConfig.speechRate ?? 0.95,
+        0.5,
+        2
+      );
+
+      utterance.pitch = this.clamp(
+        voiceConfig.pitch ?? 1,
+        0,
+        2
+      );
+
+      utterance.volume = this.clamp(
+        voiceConfig.volume ?? 1,
+        0,
+        1
+      );
+
+      const selectedVoice = this.findBestVoice(
+        voiceConfig
+      );
+
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
       }
 
-      // Emit voice events for lip-sync synchronization
-      const emitEvent = (type: VoiceEvent['type']) => {
+      this.currentUtterance = utterance;
+      this.currentCharacterId = character.id;
+
+      let settled = false;
+
+      const finish = () => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+
+        this.isSpeakingState = false;
+        this.currentUtterance = null;
+        this.currentCharacterId = null;
+
+        resolve();
+      };
+
+      const fail = (message: string) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+
+        this.isSpeakingState = false;
+        this.currentUtterance = null;
+        this.currentCharacterId = null;
+
+        reject(new Error(message));
+      };
+
+      const emitEvent = (
+        type: VoiceEvent['type'],
+        extra: Partial<VoiceEvent> = {}
+      ) => {
         const event: VoiceEvent = {
           type,
           characterId: character.id,
           timestamp: Date.now(),
-          duration: utterance.toString().length * 50, // Rough estimate
+          ...extra,
         };
+
         onVoiceEvent?.(event);
-        this.voiceListeners.forEach((listener) => listener(event));
+
+        this.voiceListeners.forEach((listener) => {
+          try {
+            listener(event);
+          } catch (error) {
+            console.warn(
+              'Voice event listener failed:',
+              error
+            );
+          }
+        });
       };
 
       utterance.onstart = () => {
-        this.isSpeaking = true;
-        this.currentUtterance = utterance;
-        emitEvent('start');
+        this.isSpeakingState = true;
+        this.speechStartedAt = Date.now();
+
+        emitEvent('start', {
+          amplitude: 0.45,
+          duration: 0,
+        });
       };
 
-      utterance.onend = () => {
-        this.isSpeaking = false;
-        this.currentUtterance = null;
-        emitEvent('end');
-        resolve();
+      /**
+       * Browser SpeechSynthesis provides boundary events in many browsers.
+       *
+       * They are not true phoneme events, but they are useful for making
+       * mouth movement follow the speech rhythm.
+       */
+      utterance.onboundary = (event: SpeechSynthesisEvent) => {
+        if (!this.isSpeakingState) {
+          return;
+        }
+
+        const elapsed = Math.max(
+          0,
+          Date.now() - this.speechStartedAt
+        );
+
+        const characterIndex =
+          typeof event.charIndex === 'number'
+            ? event.charIndex
+            : 0;
+
+        const boundaryLength =
+          typeof event.charLength === 'number'
+            ? event.charLength
+            : 1;
+
+        const boundaryText = cleanText.slice(
+          characterIndex,
+          characterIndex + boundaryLength
+        );
+
+        const amplitude =
+          this.estimateSpeechAmplitude(
+            boundaryText
+          );
+
+        const phoneme =
+          this.estimateMouthPhoneme(
+            boundaryText
+          );
+
+        emitEvent('resume', {
+          amplitude,
+          phoneme,
+          duration: elapsed,
+        });
       };
 
       utterance.onpause = () => {
-        emitEvent('pause');
+        emitEvent('pause', {
+          amplitude: 0,
+          duration: Date.now() - this.speechStartedAt,
+        });
       };
 
       utterance.onresume = () => {
-        emitEvent('resume');
+        emitEvent('resume', {
+          amplitude: 0.45,
+          duration: Date.now() - this.speechStartedAt,
+        });
       };
 
-      utterance.onerror = () => {
-        this.isSpeaking = false;
-        this.currentUtterance = null;
-        reject(new Error('پخش صدای پاسخ ناموفق بود.'));
+      utterance.onend = () => {
+        emitEvent('end', {
+          amplitude: 0,
+          duration: Date.now() - this.speechStartedAt,
+        });
+
+        finish();
       };
 
-      synthesis.speak(utterance);
+      utterance.onerror = (event) => {
+        console.warn(
+          'Speech synthesis error:',
+          event.error
+        );
+
+        emitEvent('end', {
+          amplitude: 0,
+          duration: Date.now() - this.speechStartedAt,
+        });
+
+        fail('پخش صدای پاسخ ناموفق بود.');
+      };
+
+      try {
+        synthesis.speak(utterance);
+      } catch (error) {
+        console.warn(
+          'Could not start speech synthesis:',
+          error
+        );
+
+        fail('شروع پخش صدا ناموفق بود.');
+      }
     });
   }
 
   /**
-   * Stop speaking immediately
+   * Find the best available browser voice for the requested configuration.
+   *
+   * Priority:
+   * 1. Exact voiceURI
+   * 2. Exact voice name
+   * 3. Persian voice
+   * 4. Same language
+   * 5. Any available voice
    */
-  static stopSpeaking(): void {
-    if (this.isSpeechSynthesisSupported()) {
-      window.speechSynthesis.cancel();
-      this.isSpeaking = false;
-      this.currentUtterance = null;
+  private static findBestVoice(
+    config: VoiceConfig
+  ): SpeechSynthesisVoice | null {
+    const voices = this.getAvailableVoices();
+
+    if (voices.length === 0) {
+      return null;
     }
+
+    if (config.voiceId) {
+      const byId = voices.find(
+        (voice) =>
+          voice.voiceURI === config.voiceId
+      );
+
+      if (byId) {
+        return byId;
+      }
+    }
+
+    if (config.voiceName) {
+      const byName = voices.find(
+        (voice) =>
+          voice.name === config.voiceName
+      );
+
+      if (byName) {
+        return byName;
+      }
+    }
+
+    const requestedLanguage = (
+      config.language || 'fa-IR'
+    ).toLowerCase();
+
+    const exactLanguage = voices.find(
+      (voice) =>
+        voice.lang.toLowerCase() ===
+        requestedLanguage
+    );
+
+    if (exactLanguage) {
+      return exactLanguage;
+    }
+
+    const languagePrefix =
+      requestedLanguage.split('-')[0];
+
+    const sameLanguage = voices.find(
+      (voice) =>
+        voice.lang
+          .toLowerCase()
+          .startsWith(languagePrefix)
+    );
+
+    if (sameLanguage) {
+      return sameLanguage;
+    }
+
+    const persianVoice = voices.find(
+      (voice) =>
+        voice.lang
+          .toLowerCase()
+          .startsWith('fa')
+    );
+
+    if (persianVoice) {
+      return persianVoice;
+    }
+
+    return voices[0];
   }
 
   /**
-   * Pause current speech
+   * Estimate a visual speech amplitude from the current boundary text.
+   *
+   * This is NOT real audio amplitude.
+   * It is only a timing/phonetic heuristic for browser TTS.
    */
+  private static estimateSpeechAmplitude(
+    text: string
+  ): number {
+    const normalized = text.trim().toLowerCase();
+
+    if (!normalized) {
+      return 0.12;
+    }
+
+    if (/[\u064b-\u065f\u0670]/.test(normalized)) {
+      return 0.65;
+    }
+
+    if (
+      /[اآأإؤئهعحخغق]/.test(
+        normalized
+      )
+    ) {
+      return 0.72;
+    }
+
+    if (
+      /[اًٌٍَُِ]/.test(
+        normalized
+      )
+    ) {
+      return 0.78;
+    }
+
+    if (
+      /[مبپف]/.test(
+        normalized
+      )
+    ) {
+      return 0.42;
+    }
+
+    if (
+      /[سشزژتدطظث]/.test(
+        normalized
+      )
+    ) {
+      return 0.52;
+    }
+
+    return 0.58;
+  }
+
+  /**
+   * Small phonetic heuristic used only to choose a visual mouth shape.
+   *
+   * This is deliberately simple. Real viseme detection will be introduced
+   * when we connect the avatar to actual TTS audio.
+   */
+  private static estimateMouthPhoneme(
+    text: string
+  ): string | undefined {
+    const normalized = text.trim().toLowerCase();
+
+    if (!normalized) {
+      return undefined;
+    }
+
+    if (/[مبپ]/.test(normalized)) {
+      return 'm';
+    }
+
+    if (/[ف]/.test(normalized)) {
+      return 'f';
+    }
+
+    if (/[وؤ]/.test(normalized)) {
+      return 'u';
+    }
+
+    if (/[ا]/.test(normalized)) {
+      return 'a';
+    }
+
+    if (/[یئ]/.test(normalized)) {
+      return 'i';
+    }
+
+    if (/[هحع]/.test(normalized)) {
+      return 'h';
+    }
+
+    return undefined;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Playback controls
+  // ---------------------------------------------------------------------------
+
+  static stopSpeaking(): void {
+    if (!this.isSpeechSynthesisSupported()) {
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    this.isSpeakingState = false;
+    this.currentUtterance = null;
+    this.currentCharacterId = null;
+  }
+
   static pauseSpeaking(): void {
-    if (this.isSpeechSynthesisSupported() && this.isSpeaking) {
+    if (
+      this.isSpeechSynthesisSupported() &&
+      this.isSpeakingState
+    ) {
       window.speechSynthesis.pause();
     }
   }
 
-  /**
-   * Resume paused speech
-   */
   static resumeSpeaking(): void {
-    if (this.isSpeechSynthesisSupported() && this.isSpeaking) {
+    if (
+      this.isSpeechSynthesisSupported() &&
+      this.isSpeakingState
+    ) {
       window.speechSynthesis.resume();
     }
   }
 
-  /**
-   * Get available voices for voice selection
-   */
+  // ---------------------------------------------------------------------------
+  // Voice discovery
+  // ---------------------------------------------------------------------------
+
   static getAvailableVoices(): SpeechSynthesisVoice[] {
-    if (!this.isSpeechSynthesisSupported()) return [];
+    if (!this.isSpeechSynthesisSupported()) {
+      return [];
+    }
+
     return window.speechSynthesis.getVoices();
   }
 
-  /**
-   * Get Persian language voices
-   */
   static getPersianVoices(): SpeechSynthesisVoice[] {
-    return this.getAvailableVoices().filter((voice) =>
-      voice.lang.toLowerCase().startsWith('fa')
+    return this.getAvailableVoices().filter(
+      (voice) =>
+        voice.lang
+          .toLowerCase()
+          .startsWith('fa')
     );
   }
 
-  /**
-   * Subscribe to voice events for coordination with avatar/lip-sync
-   */
-  static subscribeToVoiceEvents(listener: VoiceEventListener): () => void {
+  // ---------------------------------------------------------------------------
+  // Event subscription
+  // ---------------------------------------------------------------------------
+
+  static subscribeToVoiceEvents(
+    listener: VoiceEventListener
+  ): () => void {
     this.voiceListeners.add(listener);
-    return () => this.voiceListeners.delete(listener);
+
+    return () => {
+      this.voiceListeners.delete(listener);
+    };
   }
 
-  /**
-   * Get current voice configuration from character
-   */
-  static getVoiceConfig(character: Character): VoiceConfig {
+  static getVoiceConfig(
+    character: Character
+  ): VoiceConfig {
     return character.voice;
   }
 
-  /**
-   * Update character's voice configuration
-   * Note: This updates the Character object; persistence is handled by CharacterService
-   */
-  static updateVoiceConfig(character: Character, config: Partial<VoiceConfig>): Character {
+  static updateVoiceConfig(
+    character: Character,
+    config: Partial<VoiceConfig>
+  ): Character {
     return {
       ...character,
+
       voice: {
         ...character.voice,
         ...config,
       },
     };
   }
+
+  // ---------------------------------------------------------------------------
+  // Utilities
+  // ---------------------------------------------------------------------------
+
+  private static clamp(
+    value: number,
+    min: number,
+    max: number
+  ): number {
+    return Math.min(
+      max,
+      Math.max(min, value)
+    );
+  }
 }
 
 /**
- * Create a voice event emitter for coordination
+ * Generic voice event emitter.
  */
 export class VoiceEventEmitter {
-  private listeners = new Set<VoiceEventListener>();
+  private listeners =
+    new Set<VoiceEventListener>();
 
-  subscribe(listener: VoiceEventListener): () => void {
+  subscribe(
+    listener: VoiceEventListener
+  ): () => void {
     this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   emit(event: VoiceEvent): void {
-    this.listeners.forEach((listener) => listener(event));
+    this.listeners.forEach((listener) => {
+      try {
+        listener(event);
+      } catch (error) {
+        console.warn(
+          'Voice event listener failed:',
+          error
+        );
+      }
+    });
   }
 
   clear(): void {
