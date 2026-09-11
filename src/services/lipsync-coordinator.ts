@@ -1,19 +1,16 @@
-import { Character, VoiceEvent } from '../types';
-import { AvatarAnimationController } from './avatar-controller';
+import type { Character, VoiceEvent } from '../types';
 
-/**
- * Mouth shapes exposed to the Avatar renderer.
- *
- * These shapes intentionally match Avatar.tsx so the coordinator can drive
- * the rendered mouth directly without an additional mapping layer.
- */
-export type MouthShape =
-  | 'closed'
-  | 'open-small'
-  | 'open-medium'
-  | 'open-large'
-  | 'smile'
-  | 'pursed';
+import {
+  AvatarAnimationController,
+} from './avatar-controller';
+
+import type {
+  MouthShape,
+  LipSyncState,
+} from './avatar-animation';
+
+// Re-export MouthShape so other components (like ChatUI) can import it from here
+export type { MouthShape };
 
 export interface LipSyncEvent {
   characterId: string;
@@ -22,12 +19,16 @@ export interface LipSyncEvent {
   amplitude: number;
   phoneme?: string;
   duration: number;
+  measured?: boolean;
 }
 
-export type LipSyncListener = (event: LipSyncEvent) => void;
+export type LipSyncListener = (
+  event: LipSyncEvent,
+) => void;
 
 /**
- * Coordinates voice timing/audio information with Avatar mouth animation.
+ * Coordinates voice timing/audio information with normalized
+ * avatar animation data.
  *
  * Architecture:
  *
@@ -37,21 +38,34 @@ export type LipSyncListener = (event: LipSyncEvent) => void;
  *      ↓
  * LipSyncCoordinator
  *      ↓
- * LipSyncEvent
+ * normalized LipSyncEvent
  *      ↓
- * ChatUI / Avatar
+ * AvatarAnimationController
  *      ↓
- * mouthShape
+ * renderer / animation adapter
  *
- * The coordinator is deliberately independent from the TTS provider.
- * Browser SpeechSynthesis can provide timing information, while a future
- * Piper/Web Audio implementation can provide real audio amplitude and/or
- * phoneme information through the same VoiceEvent interface.
+ * IMPORTANT:
+ *
+ * This coordinator does NOT know how a renderer draws a mouth.
+ *
+ * It only converts voice information into normalized animation
+ * intent such as:
+ *
+ * - closed
+ * - open-small
+ * - open-medium
+ * - open-large
+ * - smile
+ * - pursed
+ *
+ * A renderer is responsible for translating those values into
+ * SVG, CSS, Canvas, Live2D, 3D morph targets, etc.
  */
 export class LipSyncCoordinator {
   private readonly characterId: string;
 
-  private readonly listeners = new Set<LipSyncListener>();
+  private readonly listeners =
+    new Set<LipSyncListener>();
 
   private readonly voiceEventBuffer: VoiceEvent[] = [];
 
@@ -70,9 +84,8 @@ export class LipSyncCoordinator {
   /**
    * Connect the coordinator to the avatar animation controller.
    *
-   * The controller is optional because ChatUI can consume LipSyncEvents
-   * directly. Keeping this connection allows future animation systems
-   * (Live2D/Canvas/3D) to consume the same lip-sync stream.
+   * The controller is optional so the coordinator remains useful
+   * in isolation and for testing.
    */
   setAnimationController(
     controller: AvatarAnimationController,
@@ -94,7 +107,9 @@ export class LipSyncCoordinator {
 
     this.lastVoiceTimestamp = event.timestamp;
 
-    const amplitude = this.normalizeAmplitude(event.amplitude);
+    const amplitude = this.normalizeAmplitude(
+      event.amplitude,
+    );
 
     const mouthShape = this.resolveMouthShape(
       event,
@@ -108,53 +123,88 @@ export class LipSyncCoordinator {
       amplitude,
       phoneme: event.phoneme,
       duration: event.duration ?? 100,
+      measured: event.measured,
     };
 
     this.currentMouthShape = mouthShape;
     this.lastAmplitude = amplitude;
 
     this.emitLipSyncEvent(lipSyncEvent);
+
+    /**
+     * Forward normalized animation information to the animation
+     * controller when one is connected.
+     *
+     * No renderer-specific code is involved here.
+     */
+    if (this.animationController) {
+      const animationState: LipSyncState = {
+        mouthShape,
+        amplitude,
+        timestamp: event.timestamp,
+        duration: event.duration ?? 100,
+        phoneme: event.phoneme,
+        measured: event.measured,
+      };
+
+      this.animationController.setLipSyncState(
+        animationState,
+      );
+    }
   }
 
   /**
-   * Convert potentially missing/out-of-range amplitude values into
-   * a predictable 0..1 range.
+   * Convert potentially missing/out-of-range amplitude values
+   * into a predictable 0..1 range.
    */
   private normalizeAmplitude(
     amplitude: number | undefined,
   ): number {
-    if (typeof amplitude !== 'number' || !Number.isFinite(amplitude)) {
+    if (
+      typeof amplitude !== 'number' ||
+      !Number.isFinite(amplitude)
+    ) {
       return 0;
     }
 
-    return Math.min(1, Math.max(0, amplitude));
+    return Math.min(
+      1,
+      Math.max(0, amplitude),
+    );
   }
 
   /**
-   * Resolve the visual mouth shape.
+   * Resolve normalized mouth animation intent.
    *
    * Priority:
-   * 1. Explicit phoneme information when available.
-   * 2. Audio/timing amplitude.
    *
-   * This allows the same coordinator to evolve from timing-based
-   * SpeechSynthesis events to real Web Audio/Piper amplitude data later.
+   * 1. Explicit phoneme information.
+   * 2. Audio/timing amplitude.
    */
   private resolveMouthShape(
     event: VoiceEvent,
     amplitude: number,
   ): MouthShape {
-    const phoneme = event.phoneme?.trim().toLowerCase();
+    const phoneme =
+      event.phoneme
+        ?.trim()
+        .toLowerCase();
 
     if (phoneme) {
-      const phonemeShape = this.getPhonemeMouthShape(phoneme);
+      const phonemeShape =
+        this.getPhonemeMouthShape(
+          phoneme,
+        );
 
       if (phonemeShape) {
         return phonemeShape;
       }
     }
 
-    if (event.type === 'end' || event.type === 'pause') {
+    if (
+      event.type === 'end' ||
+      event.type === 'pause'
+    ) {
       return 'closed';
     }
 
@@ -174,52 +224,89 @@ export class LipSyncCoordinator {
   }
 
   /**
-   * Basic viseme mapping.
+   * Basic provider-agnostic phoneme → animation mapping.
    *
-   * This is intentionally small and provider-agnostic. A future phoneme
-   * detector can send richer phonemes without requiring changes to Avatar.tsx.
+   * This is an animation-intent mapping, not a renderer mapping.
    */
   private getPhonemeMouthShape(
     phoneme: string,
   ): MouthShape | undefined {
     if (
-      ['a', 'ɑ', 'æ', 'ā', 'á'].includes(phoneme)
+      [
+        'a',
+        'ɑ',
+        'æ',
+        'ā',
+        'á',
+      ].includes(phoneme)
     ) {
       return 'open-large';
     }
 
     if (
-      ['e', 'ɛ', 'i', 'ɪ', 'ə', 'əː'].includes(phoneme)
+      [
+        'e',
+        'ɛ',
+        'i',
+        'ɪ',
+        'ə',
+        'əː',
+      ].includes(phoneme)
     ) {
       return 'open-medium';
     }
 
     if (
-      ['o', 'ɔ', 'u', 'ʊ'].includes(phoneme)
+      [
+        'o',
+        'ɔ',
+        'u',
+        'ʊ',
+      ].includes(phoneme)
     ) {
       return 'open-medium';
     }
 
     if (
-      ['m', 'b', 'p'].includes(phoneme)
+      [
+        'm',
+        'b',
+        'p',
+      ].includes(phoneme)
     ) {
       return 'pursed';
     }
 
     if (
-      ['f', 'v'].includes(phoneme)
+      [
+        'f',
+        'v',
+      ].includes(phoneme)
     ) {
       return 'pursed';
     }
 
     if (
-      ['s', 'z', 'ʃ', 'ʒ'].includes(phoneme)
+      [
+        's',
+        'z',
+        'ʃ',
+        'ʒ',
+      ].includes(phoneme)
     ) {
       return 'open-small';
     }
 
     if (
-      ['l', 'r', 'n', 't', 'd', 'k', 'g'].includes(phoneme)
+      [
+        'l',
+        'r',
+        'n',
+        't',
+        'd',
+        'k',
+        'g',
+      ].includes(phoneme)
     ) {
       return 'open-small';
     }
@@ -228,20 +315,20 @@ export class LipSyncCoordinator {
   }
 
   /**
-   * Emit a normalized lip-sync event to all subscribers.
+   * Emit normalized lip-sync information to subscribers.
    */
   private emitLipSyncEvent(
     event: LipSyncEvent,
   ): void {
-    this.listeners.forEach((listener) => {
-      listener(event);
-    });
+    this.listeners.forEach(
+      (listener) => {
+        listener(event);
+      },
+    );
   }
 
   /**
-   * Subscribe to mouth/viseme changes.
-   *
-   * Returns an unsubscribe function.
+   * Subscribe to normalized lip-sync changes.
    */
   subscribe(
     listener: LipSyncListener,
@@ -254,7 +341,7 @@ export class LipSyncCoordinator {
   }
 
   /**
-   * Current mouth shape.
+   * Current normalized mouth animation intent.
    */
   getCurrentMouthShape(): MouthShape {
     return this.currentMouthShape;
@@ -268,7 +355,7 @@ export class LipSyncCoordinator {
   }
 
   /**
-   * Timestamp of the latest processed voice event.
+   * Timestamp of latest processed voice event.
    */
   getLastVoiceTimestamp(): number {
     return this.lastVoiceTimestamp;
@@ -288,35 +375,44 @@ export class LipSyncCoordinator {
   }
 
   /**
-   * Clear buffered voice events without changing the current mouth state.
+   * Clear buffered voice events.
    */
   clearBuffer(): void {
     this.voiceEventBuffer.length = 0;
   }
 
   /**
-   * Reset the complete lip-sync state and explicitly close the mouth.
+   * Reset complete lip-sync state.
    */
   reset(): void {
     this.lastAmplitude = 0;
     this.currentMouthShape = 'closed';
     this.lastVoiceTimestamp = Date.now();
+
     this.voiceEventBuffer.length = 0;
 
-    this.emitLipSyncEvent({
+    const resetEvent: LipSyncEvent = {
       characterId: this.characterId,
       timestamp: this.lastVoiceTimestamp,
       mouthShape: 'closed',
       amplitude: 0,
       duration: 0,
-    });
+    };
+
+    this.emitLipSyncEvent(resetEvent);
+
+    if (this.animationController) {
+      this.animationController.setLipSyncState({
+        mouthShape: 'closed',
+        amplitude: 0,
+        timestamp: this.lastVoiceTimestamp,
+        duration: 0,
+      });
+    }
   }
 
   /**
-   * Expose the optional animation controller for future renderers.
-   *
-   * The current SVG Avatar is driven through LipSyncEvent/mouthShape.
-   * Live2D/3D renderers can use the controller in a later stage.
+   * Expose the optional animation controller.
    */
   getAnimationController():
     | AvatarAnimationController
@@ -326,88 +422,12 @@ export class LipSyncCoordinator {
 }
 
 /**
- * CSS class names corresponding to the Avatar mouth shapes.
- */
-export const mouthShapeClasses: Record<
-  MouthShape,
-  string
-> = {
-  closed: 'mouth-closed',
-  'open-small': 'mouth-open-small',
-  'open-medium': 'mouth-open-medium',
-  'open-large': 'mouth-open-large',
-  smile: 'mouth-smile',
-  pursed: 'mouth-pursed',
-};
-
-/**
- * SVG path generator for diagnostics and future renderer adapters.
- */
-export function getMouthShapeSVG(
-  shape: MouthShape,
-  width = 40,
-  height = 20,
-): string {
-  const paths: Record<MouthShape, string> = {
-    closed: `
-      M ${width * 0.2} ${height * 0.5}
-      Q ${width * 0.5} ${height * 0.4}
-        ${width * 0.8} ${height * 0.5}
-    `,
-
-    'open-small': `
-      M ${width * 0.2} ${height * 0.5}
-      Q ${width * 0.5} ${height * 0.7}
-        ${width * 0.8} ${height * 0.5}
-    `,
-
-    'open-medium': `
-      M ${width * 0.2} ${height * 0.3}
-      Q ${width * 0.5} ${height * 0.9}
-        ${width * 0.8} ${height * 0.3}
-    `,
-
-    'open-large': `
-      M ${width * 0.1} ${height * 0.2}
-      Q ${width * 0.5} ${height}
-        ${width * 0.9} ${height * 0.2}
-    `,
-
-    smile: `
-      M ${width * 0.2} ${height * 0.4}
-      Q ${width * 0.5} ${height * 0.8}
-        ${width * 0.8} ${height * 0.4}
-    `,
-
-    pursed: `
-      M ${width * 0.3} ${height * 0.4}
-      Q ${width * 0.5} ${height * 0.6}
-        ${width * 0.7} ${height * 0.4}
-    `,
-  };
-
-  return `
-    <svg
-      viewBox="0 0 ${width} ${height}"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="${paths[shape]}"
-        stroke="currentColor"
-        stroke-width="2"
-        fill="none"
-        stroke-linecap="round"
-      />
-    </svg>
-  `;
-}
-
-/**
- * Factory used by ChatUI/character orchestration.
+ * Factory used by character/chat orchestration.
  */
 export function createLipSyncCoordinator(
   character: Character,
 ): LipSyncCoordinator {
-  return new LipSyncCoordinator(character.id);
+  return new LipSyncCoordinator(
+    character.id,
+  );
 }
-
