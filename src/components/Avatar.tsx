@@ -1,20 +1,29 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { AvatarState, Character } from '../types';
 import { avatarStateLabels } from '../services/avatar';
+import {
+  AvatarAnimationController as RendererAnimationController,
+  MouthShape,
+} from '../services/avatar-animation';
+import { createAvatar2DAnimationAdapter } from '../services/avatar-animation-adapter';
 
-export type AvatarMouthShape =
-  | 'closed'
-  | 'open-small'
-  | 'open-medium'
-  | 'open-large'
-  | 'smile'
-  | 'pursed';
+/**
+ * Backward-compatible alias for callers that still use the old component type.
+ * The actual mouth state is renderer-neutral and now comes from avatar-animation.
+ */
+export type AvatarMouthShape = MouthShape;
 
 interface AvatarProps {
   character: Character;
   state: AvatarState;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   mouthShape?: AvatarMouthShape;
+  /**
+   * Renderer-neutral animation controller supplied by the chat/orchestration layer.
+   * The Avatar component owns the 2D adapter so a future Live2D/3D component can
+   * use the same controller without changing the voice or chat pipeline.
+   */
+  animationController?: RendererAnimationController;
 }
 
 const sizes = {
@@ -452,21 +461,53 @@ export function Avatar({
   state,
   size = 'lg',
   mouthShape,
+  animationController,
 }: AvatarProps) {
   const [blink, setBlink] = useState(false);
+  const [renderState, setRenderState] = useState<AvatarState>(state);
+  const [renderMouthShape, setRenderMouthShape] =
+    useState<AvatarMouthShape>(
+      mouthShape ?? (state === 'speaking' ? 'open-medium' : 'closed'),
+    );
 
   const dimension = sizes[size];
-  const style = stateStyles[state];
+  const style = stateStyles[renderState];
 
-  /*
-   * If the lip-sync coordinator has not supplied a mouth shape yet,
-   * speaking gets a neutral medium opening. Other states remain closed.
+  /**
+   * Connect this concrete 2D renderer to the renderer-neutral animation stream.
+   * The adapter owns the renderer-specific representation while the controller
+   * remains independent from SVG/2D details.
    */
-  const resolvedMouthShape: AvatarMouthShape =
-    mouthShape ??
-    (state === 'speaking'
-      ? 'open-medium'
-      : 'closed');
+  useEffect(() => {
+    if (!animationController) {
+      setRenderState(state);
+      setRenderMouthShape(
+        mouthShape ?? (state === 'speaking' ? 'open-medium' : 'closed'),
+      );
+      return;
+    }
+
+    const adapter = createAvatar2DAnimationAdapter();
+    const detachAdapter = animationController.attachAdapter(adapter);
+
+    setRenderState(adapter.getState());
+    setRenderMouthShape(adapter.getLipSync().mouthShape);
+
+    const unsubscribe = animationController.subscribe((command) => {
+      setRenderState(adapter.getState());
+      setRenderMouthShape(adapter.getLipSync().mouthShape);
+
+      if (command.type === 'reset') {
+        setRenderState(adapter.getState());
+        setRenderMouthShape(adapter.getLipSync().mouthShape);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      detachAdapter();
+    };
+  }, [animationController, mouthShape, state]);
 
   useEffect(() => {
     let mounted = true;
@@ -515,8 +556,8 @@ export function Avatar({
         maxWidth: '100%',
       }}
       data-character-id={character.id}
-      data-avatar-state={state}
-      data-mouth-shape={resolvedMouthShape}
+      data-avatar-state={renderState}
+      data-mouth-shape={renderMouthShape}
     >
       <div
         className="absolute inset-0 overflow-hidden rounded-4xl border-4"
@@ -530,8 +571,8 @@ export function Avatar({
         }}
       >
         <HarryAvatar
-          state={state}
-          mouthShape={resolvedMouthShape}
+          state={renderState}
+          mouthShape={renderMouthShape}
           blink={blink}
         />
       </div>
@@ -539,20 +580,20 @@ export function Avatar({
       <div
         className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-200/20 bg-[#21142f]/95 px-4 py-1.5 text-xs text-amber-100 shadow-lg"
       >
-        {avatarStateLabels[state]}
+        {avatarStateLabels[renderState]}
       </div>
 
-      {state === 'listening' && (
+      {renderState === 'listening' && (
         <div className="pointer-events-none absolute -inset-3 animate-ping rounded-[2.5rem] border border-sky-300/30" />
       )}
 
-      {state === 'thinking' && (
+      {renderState === 'thinking' && (
         <div className="absolute -right-3 -top-4 rounded-full bg-violet-500 px-3 py-1 text-xs text-white shadow-lg">
           ...
         </div>
       )}
 
-      {state === 'error' && (
+      {renderState === 'error' && (
         <div className="absolute -right-3 -top-4 rounded-full bg-rose-500 px-3 py-1 text-xs text-white shadow-lg">
           !
         </div>
