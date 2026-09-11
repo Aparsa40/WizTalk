@@ -18,7 +18,7 @@ import {
 
 import { ApiService } from '../services/api';
 import { Avatar } from './Avatar';
-import { AvatarAnimationController } from '../services/avatar';
+import { AvatarAnimationController } from '../services/avatar-controller';
 import { MemoryService } from '../services/memory';
 import { VoiceService } from '../services/voice-advanced';
 import { LipSyncCoordinator } from '../services/lipsync-coordinator';
