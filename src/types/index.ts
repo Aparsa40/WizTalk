@@ -79,8 +79,8 @@ communicationStyle: string;
 * AI provider and model configuration.
   */
   export interface AIConfig {
-  provider: Provider;
-  model: string;
+  provider?: Provider | string;
+  model?: string;
   }
 
 /**
@@ -89,7 +89,7 @@ communicationStyle: string;
 *
 * * Avatar rendering and animation
 * * Voice configuration and synthesis
-* * AI model and provider settings
+* * AI model and provider settings (server-authoritative / internal)
 * * Memory and conversation history
 * * Personality and interaction traits
     */
@@ -103,7 +103,7 @@ communicationStyle: string;
     greeting: string;
     systemInstructions: string;
     avatar: AvatarConfig;
-    ai: AIConfig;
+    ai?: AIConfig;
     voice: VoiceConfig;
     enabled: boolean;
     source?: 'builtin' | 'custom';
@@ -125,10 +125,27 @@ notes: string;
 
 export interface AppState {
 selectedCharacterId: string | null;
-provider: Provider;
-model: string;
 voiceEnabled: boolean;
 userProfile: UserProfile;
+/** @deprecated Internal/legacy only. AI route is determined server-side. */
+provider?: Provider;
+/** @deprecated Internal/legacy only. Model is determined server-side. */
+model?: string;
+}
+
+export interface ChatRequest {
+message: string;
+characterId: string;
+history?: Array<{
+  sender: 'user' | 'character';
+  text: string;
+}>;
+character?: Character;
+}
+
+export interface ChatResponse {
+response: string;
+characterId: string;
 }
 
 export interface ProviderConfig {

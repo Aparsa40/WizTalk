@@ -9,7 +9,7 @@ export interface ServerCharacter {
   personality: { description: string; behavior: string; tone: string; communicationStyle: string };
   greeting: string; systemInstructions: string;
   avatar: { type: string; source: string; [key: string]: unknown };
-  ai: { provider: 'local' | 'gemini' | 'openai'; model: string };
+  ai?: { provider: 'openrouter' | 'local' | 'gemini' | 'openai' | string; model?: string };
   voice: { provider: 'browser'; voiceId?: string; language: string; enabled: boolean };
   enabled: boolean; source?: 'builtin' | 'custom';
 }
@@ -26,7 +26,7 @@ export function normalizeCharacter(raw: Record<string, any>, source: 'builtin' |
       tone: String(personality.tone || ''), communicationStyle: String(personality.communicationStyle || ''),
     },
     avatar: { type: String(avatar.type || 'portrait'), source: String(avatar.source || ''), ...avatar },
-    ai: { provider: raw.ai?.provider || 'local', model: raw.ai?.model || 'faq-keyword-v1' },
+    ai: { provider: raw.ai?.provider || 'openrouter', model: raw.ai?.model || 'minimax/minimax-m2.7:free' },
     voice: { provider: 'browser', language: raw.voice?.language || 'fa-IR', enabled: raw.voice?.enabled !== false, ...raw.voice },
     enabled: raw.enabled !== false,
     source: raw.source || source,

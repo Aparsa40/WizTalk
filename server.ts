@@ -12,7 +12,6 @@ import {
 import {
   generateResponse,
   providerConfigs,
-  Provider,
 } from './server/services/ai';
 
 dotenv.config();
@@ -21,14 +20,7 @@ const app = express();
 
 app.use(express.json({ limit: '64kb' }));
 
-const PORT = Number(process.env.PORT) || 3000;
-
-const providers = new Set<Provider>([
-  'local',
-  'gemini',
-  'openai',
-  'openrouter',
-]);
+const PORT = 3000;
 
 const chatRateLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -76,15 +68,11 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
   const {
     message,
     characterId,
-    provider,
-    model,
     history,
     character: clientCharacter,
   } = req.body as {
     message?: unknown;
     characterId?: unknown;
-    provider?: unknown;
-    model?: unknown;
     history?: unknown;
     character?: Record<string, any>;
   };
@@ -95,18 +83,9 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
     });
   }
 
-  if (typeof characterId !== 'string') {
+  if (typeof characterId !== 'string' || !characterId.trim()) {
     return res.status(400).json({
       error: 'شخصیت انتخاب نشده است.',
-    });
-  }
-
-  if (
-    typeof provider !== 'string' ||
-    !providers.has(provider as Provider)
-  ) {
-    return res.status(400).json({
-      error: 'ارائه‌دهنده‌ی هوش مصنوعی نامعتبر است.',
     });
   }
 
@@ -154,24 +133,19 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
     const result = await generateResponse({
       message: message.trim(),
       character,
-      provider: provider as Provider,
-      model:
-        typeof model === 'string'
-          ? model
-          : undefined,
       history: safeHistory,
       trustedSystemInstructions,
     });
 
-    res.json(result);
+    res.json({
+      response: result.response,
+      characterId: character.id,
+    });
   } catch (error) {
-    console.error('Chat provider error', error);
+    console.error('Chat generation error', error);
 
-    res.status(502).json({
-      error:
-        error instanceof Error
-          ? error.message
-          : 'ارتباط با سرویس هوش مصنوعی ناموفق بود.',
+    res.status(500).json({
+      error: 'پاسخ‌گویی به گفت‌وگو در حال حاضر با مشکل مواجه شد.',
     });
   }
 });

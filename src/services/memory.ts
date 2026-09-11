@@ -9,8 +9,6 @@ const STORAGE_KEYS = {
 const defaultProfile: UserProfile = { name: '', preferredAddress: '', interests: [], notes: '' };
 const defaultState: AppState = {
   selectedCharacterId: null,
-  provider: 'local',
-  model: 'faq-keyword-v1',
   voiceEnabled: true,
   userProfile: defaultProfile,
 };

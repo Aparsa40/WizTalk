@@ -300,8 +300,6 @@ export function ChatUI({
         await ApiService.sendMessage(
           userMsg.text,
           character.id,
-          appState.provider,
-          appState.model,
           nextMessages,
           character,
         );
@@ -462,9 +460,7 @@ export function ChatUI({
           </h2>
 
           <span className="text-xs text-amber-50/50">
-            {appState.provider === 'local'
-              ? 'آفلاین'
-              : `${appState.provider} · ${appState.model}`}
+            {character.role || character.description || 'هم‌صحبت هاگوارتز'}
           </span>
         </div>
 
