@@ -9,6 +9,9 @@ import type {
   LipSyncState,
 } from './avatar-animation';
 
+// Re-export MouthShape so other components (like ChatUI) can import it from here
+export type { MouthShape };
+
 export interface LipSyncEvent {
   characterId: string;
   timestamp: number;
