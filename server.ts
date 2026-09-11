@@ -5,14 +5,10 @@ import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 import {
   getCharacter,
-  listCharacters,
-  normalizeCharacter,
+  listCharacterPresentations,
   ServerCharacter,
 } from './server/services/characters';
-import {
-  generateResponse,
-  providerConfigs,
-} from './server/services/ai';
+import { generateResponse } from './server/services/ai';
 
 dotenv.config();
 
@@ -51,7 +47,7 @@ app.get('/api/health', (_req, res) => {
 
 app.get('/api/characters', async (_req, res) => {
   try {
-    res.json(await listCharacters());
+    res.json(await listCharacterPresentations());
   } catch (error) {
     console.error('Character list error', error);
     res.status(500).json({
@@ -60,8 +56,12 @@ app.get('/api/characters', async (_req, res) => {
   }
 });
 
+// Kept as an explicit retirement response so SPA fallback never makes this
+// former provider-selection endpoint appear usable.
 app.get('/api/models', (_req, res) => {
-  res.json(providerConfigs);
+  res.status(410).json({
+    error: 'انتخاب مدل در مرورگر پشتیبانی نمی‌شود.',
+  });
 });
 
 app.post('/api/chat', chatRateLimiter, async (req, res) => {
@@ -69,12 +69,10 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
     message,
     characterId,
     history,
-    character: clientCharacter,
   } = req.body as {
     message?: unknown;
     characterId?: unknown;
     history?: unknown;
-    character?: Record<string, any>;
   };
 
   if (typeof message !== 'string' || !message.trim()) {
@@ -89,20 +87,7 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
     });
   }
 
-  let character: ServerCharacter | null =
-    await getCharacter(characterId);
-
-  let trustedSystemInstructions: string | undefined;
-
-  if (character) {
-    trustedSystemInstructions = character.systemInstructions;
-  } else if (
-    clientCharacter?.source === 'custom' &&
-    clientCharacter.id === characterId &&
-    typeof clientCharacter.systemInstructions === 'string'
-  ) {
-    character = normalizeCharacter(clientCharacter, 'custom');
-  }
+  const character: ServerCharacter | null = await getCharacter(characterId);
 
   if (!character) {
     return res.status(404).json({
@@ -134,7 +119,6 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
       message: message.trim(),
       character,
       history: safeHistory,
-      trustedSystemInstructions,
     });
 
     res.json({

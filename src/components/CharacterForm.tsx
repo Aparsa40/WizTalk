@@ -29,7 +29,7 @@ export function CharacterForm({ initial, onSave, onCancel }: CharacterFormProps)
     }));
 
   const valid =
-    form.name.trim() && form.displayName.trim() && form.systemInstructions.trim();
+    form.name.trim() && form.displayName.trim();
 
   const save = () => {
     if (valid) {
@@ -111,17 +111,6 @@ export function CharacterForm({ initial, onSave, onCancel }: CharacterFormProps)
             value={form.greeting}
             onChange={(e) => update({ greeting: e.target.value })}
             placeholder="سلام! به دنبال نارجِل‌ها هستی؟"
-          />
-        </label>
-
-        <label className="text-sm text-amber-100/80 sm:col-span-2">
-          دستورهای سیستمی و هویت شخصیت
-          <textarea
-            id="char-form-instructions"
-            className={fieldClass + ' min-h-24'}
-            value={form.systemInstructions}
-            onChange={(e) => update({ systemInstructions: e.target.value })}
-            placeholder="در نقش لونا لاوگود به زبان فارسی با لحنی آرام و فرازمینی پاسخ بده..."
           />
         </label>
 

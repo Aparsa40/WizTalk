@@ -1,4 +1,4 @@
-import { Character, Provider } from '../types';
+import { Character } from '../types';
 
 const CUSTOM_CHARACTERS_KEY = 'wiztalk_custom_characters';
 
@@ -26,9 +26,7 @@ export function createCharacterDraft(overrides: Partial<Character> = {}): Charac
     id: '', name: '', displayName: '', description: '', role: '',
     personality: { description: '', behavior: '', tone: '', communicationStyle: '' },
     greeting: 'سلام! خوشحالم که با هم صحبت می‌کنیم.',
-    systemInstructions: 'در نقش این شخصیت پاسخ بده و از شکستن نقش خودداری کن.',
     avatar: { type: 'portrait', source: '' },
-    ai: { provider: 'openrouter', model: 'minimax/minimax-m2.7:free' },
     voice: { provider: 'browser', language: 'fa-IR', enabled: true },
     enabled: true, source: 'custom', ...overrides,
   };
@@ -43,7 +41,7 @@ export class CharacterService {
   }
 
   static create(input: Character): Character {
-    const base = slugify(input.name || input.displayName);
+    const base = `custom-${slugify(input.name || input.displayName)}`;
     const existing = readCustomCharacters();
     let id = base;
     let index = 2;
@@ -72,5 +70,4 @@ export class CharacterService {
   }
 
   static isCustom(character: Character): boolean { return character.source === 'custom'; }
-  static defaultProvider(character: Character): Provider { return (character.ai?.provider as Provider) || 'openrouter'; }
 }

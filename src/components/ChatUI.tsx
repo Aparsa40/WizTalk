@@ -267,6 +267,23 @@ export function ChatUI({
       return;
     }
 
+    // Custom characters are presentation-only until a server-side persistence
+    // mechanism can create a trusted character runtime for them.
+    if (character.source === 'custom') {
+      setState('error');
+      setMessages((current) => [
+        ...current,
+        {
+          id: `custom-character-${Date.now()}`,
+          sender: 'character',
+          text: 'گفت‌وگوی شخصیت‌های سفارشی تا زمان ذخیره‌سازی امن سمت سرور در دسترس نیست.',
+          timestamp: Date.now(),
+        },
+      ]);
+      setInput('');
+      return;
+    }
+
     const userMsg: Message = {
       id:
         typeof crypto !== 'undefined' &&
@@ -301,7 +318,6 @@ export function ChatUI({
           userMsg.text,
           character.id,
           nextMessages,
-          character,
         );
 
       const characterMsg: Message = {

@@ -1,11 +1,5 @@
 import type { ReactElement } from 'react';
 
-export type Provider =
-| 'local'
-| 'gemini'
-| 'openai'
-| 'openrouter';
-
 export type AvatarState =
 | 'idle'
 | 'listening'
@@ -76,20 +70,10 @@ communicationStyle: string;
 
 /**
 
-* AI provider and model configuration.
-  */
-  export interface AIConfig {
-  provider?: Provider | string;
-  model?: string;
-  }
-
-/**
-
 * Character represents an independent AI character with its own:
 *
 * * Avatar rendering and animation
 * * Voice configuration and synthesis
-* * AI model and provider settings (server-authoritative / internal)
 * * Memory and conversation history
 * * Personality and interaction traits
     */
@@ -101,9 +85,7 @@ communicationStyle: string;
     role: string;
     personality: PersonalityConfig;
     greeting: string;
-    systemInstructions: string;
     avatar: AvatarConfig;
-    ai?: AIConfig;
     voice: VoiceConfig;
     enabled: boolean;
     source?: 'builtin' | 'custom';
@@ -127,10 +109,6 @@ export interface AppState {
 selectedCharacterId: string | null;
 voiceEnabled: boolean;
 userProfile: UserProfile;
-/** @deprecated Internal/legacy only. AI route is determined server-side. */
-provider?: Provider;
-/** @deprecated Internal/legacy only. Model is determined server-side. */
-model?: string;
 }
 
 export interface ChatRequest {
@@ -140,7 +118,6 @@ history?: Array<{
   sender: 'user' | 'character';
   text: string;
 }>;
-character?: Character;
 }
 
 export interface ChatResponse {
@@ -148,14 +125,6 @@ response: string;
 characterId: string;
 }
 
-export interface ProviderConfig {
-id: Provider;
-label: string;
-description: string;
-defaultModel: string;
-models: string[];
-requiresServerKey: boolean;
-}
 
 /**
 

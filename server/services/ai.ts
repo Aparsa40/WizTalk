@@ -19,10 +19,6 @@ export interface GenerateRequest {
   message: string;
   character: ServerCharacter;
   history?: HistoryItem[];
-  // Internal server-side routing overrides (not exposed to client)
-  provider?: Provider;
-  model?: string;
-  trustedSystemInstructions?: string;
 }
 
 export interface GenerateResult {
@@ -33,50 +29,6 @@ export interface GenerateResult {
   modelUsed?: string;
   fallbackReason?: string;
 }
-
-export interface ProviderConfig {
-  id: Provider;
-  label: string;
-  description: string;
-  defaultModel: string;
-  models: string[];
-  requiresServerKey: boolean;
-}
-
-export const providerConfigs: ProviderConfig[] = [
-  {
-    id: "openrouter",
-    label: "OpenRouter (MiniMax M2.7)",
-    description: "موتور اصلی آنلاین با اتصال امن سمت سرور.",
-    defaultModel: process.env.OPENROUTER_MODEL || "minimax/minimax-m2.7:free",
-    models: [process.env.OPENROUTER_MODEL || "minimax/minimax-m2.7:free"],
-    requiresServerKey: true,
-  },
-  {
-    id: "local",
-    label: "موتور دانش محلی",
-    description: "موتور دانش ساختاریافته شخصیت‌ها و دنیای هاگوارتز.",
-    defaultModel: "knowledge-engine-v1",
-    models: ["knowledge-engine-v1"],
-    requiresServerKey: false,
-  },
-  {
-    id: "gemini",
-    label: "Google Gemini",
-    description: "اتصال ثانویه سرور به Gemini.",
-    defaultModel: "gemini-2.5-flash",
-    models: ["gemini-2.5-flash", "gemini-2.5-pro"],
-    requiresServerKey: true,
-  },
-  {
-    id: "openai",
-    label: "OpenAI",
-    description: "اتصال ثانویه سرور به OpenAI.",
-    defaultModel: "gpt-4o-mini",
-    models: ["gpt-4o-mini", "gpt-4o"],
-    requiresServerKey: true,
-  },
-];
 
 const DEFAULT_SYSTEM_INSTRUCTIONS =
   "You are WizTalk, a helpful character-driven conversational AI. " +
@@ -134,7 +86,7 @@ export class AiConnectionManager {
     const { character, message, history } = request;
 
     // 1. Check internal character AI preference if specified
-    const rawProvider = request.provider || character.ai?.provider || "openrouter";
+    const rawProvider = character.ai.provider || "openrouter";
     const internalProvider: Provider =
       rawProvider === "gemini" ||
       rawProvider === "openai" ||
@@ -144,8 +96,7 @@ export class AiConnectionManager {
         : "openrouter";
 
     const configuredModel =
-      request.model ||
-      character.ai?.model ||
+      character.ai.model ||
       (internalProvider === "openrouter"
         ? process.env.OPENROUTER_MODEL || "minimax/minimax-m2.7:free"
         : undefined);
@@ -169,7 +120,6 @@ export class AiConnectionManager {
         character,
         message,
         history,
-        trustedSystemInstructions: request.trustedSystemInstructions,
       });
 
       return {
@@ -213,7 +163,6 @@ export class AiConnectionManager {
     character: ServerCharacter;
     message: string;
     history?: HistoryItem[];
-    trustedSystemInstructions?: string;
   }): Promise<{ text: string; model: string }> {
     const { provider, character, message, history } = params;
     const timeoutMs = getTimeoutMs();
@@ -247,7 +196,6 @@ export class AiConnectionManager {
       character: ServerCharacter;
       message: string;
       history?: HistoryItem[];
-      trustedSystemInstructions?: string;
     },
     signal: AbortSignal,
   ): Promise<{ text: string; model: string }> {
@@ -271,7 +219,7 @@ export class AiConnectionManager {
     });
 
     const systemPrompt = [
-      params.trustedSystemInstructions || DEFAULT_SYSTEM_INSTRUCTIONS,
+      DEFAULT_SYSTEM_INSTRUCTIONS,
       characterContextPrompt(params.character),
     ].join("\n\n");
 
@@ -316,7 +264,6 @@ export class AiConnectionManager {
       character: ServerCharacter;
       message: string;
       history?: HistoryItem[];
-      trustedSystemInstructions?: string;
     },
     _signal: AbortSignal,
   ): Promise<{ text: string; model: string }> {
@@ -337,7 +284,7 @@ export class AiConnectionManager {
       .join("\n\n");
 
     const systemInstruction =
-      params.trustedSystemInstructions || DEFAULT_SYSTEM_INSTRUCTIONS;
+      DEFAULT_SYSTEM_INSTRUCTIONS;
 
     const response = await genAI.models.generateContent({
       model,
@@ -362,7 +309,6 @@ export class AiConnectionManager {
       character: ServerCharacter;
       message: string;
       history?: HistoryItem[];
-      trustedSystemInstructions?: string;
     },
     signal: AbortSignal,
   ): Promise<{ text: string; model: string }> {
@@ -375,7 +321,7 @@ export class AiConnectionManager {
     const openai = new OpenAI({ apiKey });
 
     const systemPrompt = [
-      params.trustedSystemInstructions || DEFAULT_SYSTEM_INSTRUCTIONS,
+      DEFAULT_SYSTEM_INSTRUCTIONS,
       characterContextPrompt(params.character),
     ].join("\n\n");
 
