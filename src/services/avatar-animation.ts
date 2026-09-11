@@ -1,15 +1,12 @@
-import type { AvatarState } from '../types';
+import type {
+  AvatarState,
+} from '../types';
 
 /**
  * Renderer-neutral mouth shapes.
  *
- * IMPORTANT:
- * These values describe the animation intent only.
- * They do NOT describe how a renderer should draw the mouth.
- *
- * A 2D renderer may translate these values into SVG/CSS.
- * A Live2D renderer may translate them into parameters.
- * A 3D renderer may translate them into blend shapes / morph targets.
+ * These values describe animation intent only.
+ * They do not describe how a renderer draws the mouth.
  */
 export type MouthShape =
   | 'closed'
@@ -20,13 +17,7 @@ export type MouthShape =
   | 'pursed';
 
 /**
- * Normalized lip-sync state.
- *
- * This is the bridge between speech/lip-sync processing
- * and the actual avatar renderer.
- *
- * The renderer should not need to know where this information
- * came from (browser TTS, Piper, external provider, etc.).
+ * Normalized lip-sync state shared by all avatar renderers.
  */
 export interface LipSyncState {
   mouthShape: MouthShape;
@@ -38,9 +29,7 @@ export interface LipSyncState {
 }
 
 /**
- * Animation command sent to an avatar animation adapter.
- *
- * This intentionally stays renderer-agnostic.
+ * Renderer-neutral animation command.
  */
 export type AvatarAnimationCommand =
   | {
@@ -56,53 +45,35 @@ export type AvatarAnimationCommand =
     };
 
 /**
- * Renderer-neutral animation adapter.
+ * Adapter implemented by an avatar animation backend.
  *
- * Every avatar implementation can provide its own adapter:
+ * Possible implementations:
  *
  * - 2D / SVG
  * - Canvas
  * - Live2D
  * - 3D
- * - future renderer implementations
- *
- * The animation system only talks to this contract.
+ * - future renderers
  */
 export interface AvatarAnimationAdapter {
-  /**
-   * Apply a high-level avatar state.
-   */
   setState(state: AvatarState): void;
 
-  /**
-   * Apply normalized lip-sync information.
-   */
   setLipSync(state: LipSyncState): void;
 
-  /**
-   * Reset animation-specific state.
-   */
   reset(): void;
 }
 
 /**
- * Listener notified whenever the normalized animation state changes.
- *
- * This is useful for React components and renderer adapters that
- * need to observe animation changes without knowing anything
- * about the voice provider or LipSyncCoordinator.
+ * Listener notified when normalized animation data changes.
  */
 export type AvatarAnimationListener = (
   command: AvatarAnimationCommand,
 ) => void;
 
 /**
- * Central animation state container.
+ * Renderer-neutral animation controller.
  *
- * This class intentionally does not render anything.
- *
- * Its responsibility is to maintain normalized animation state
- * and expose it to whichever renderer is currently active.
+ * This class contains animation state but no rendering logic.
  */
 export class AvatarAnimationController {
   private state: AvatarState = 'idle';
@@ -113,29 +84,65 @@ export class AvatarAnimationController {
     timestamp: Date.now(),
   };
 
-  private listeners = new Set<AvatarAnimationListener>();
+  private listeners =
+    new Set<AvatarAnimationListener>();
+
+  private adapters =
+    new Set<AvatarAnimationAdapter>();
 
   /**
-   * Get the current high-level avatar state.
+   * Get current avatar state.
    */
   getState(): AvatarState {
     return this.state;
   }
 
   /**
-   * Get the current normalized lip-sync state.
+   * Get current normalized lip-sync state.
    */
   getLipSyncState(): LipSyncState {
-    return { ...this.lipSyncState };
+    return {
+      ...this.lipSyncState,
+    };
   }
 
   /**
-   * Update the high-level avatar state.
+   * Attach an animation adapter.
+   *
+   * Multiple adapters are supported so the same animation
+   * stream can be consumed by different renderer backends.
    */
-  setState(state: AvatarState): void {
-    if (this.state === state) return;
+  attachAdapter(
+    adapter: AvatarAnimationAdapter,
+  ): () => void {
+    this.adapters.add(adapter);
+
+    // Synchronize the newly attached adapter immediately.
+    adapter.setState(this.state);
+    adapter.setLipSync(this.lipSyncState);
+
+    return () => {
+      this.adapters.delete(adapter);
+    };
+  }
+
+  /**
+   * Update high-level avatar state.
+   */
+  setState(
+    state: AvatarState,
+  ): void {
+    if (this.state === state) {
+      return;
+    }
 
     this.state = state;
+
+    this.adapters.forEach(
+      (adapter) => {
+        adapter.setState(state);
+      },
+    );
 
     this.emit({
       type: 'state',
@@ -145,24 +152,36 @@ export class AvatarAnimationController {
 
   /**
    * Update normalized lip-sync information.
-   *
-   * The controller does not interpret or render the mouth shape.
-   * That responsibility belongs to the active animation adapter.
    */
-  setLipSync(state: LipSyncState): void {
+  setLipSync(
+    state: LipSyncState,
+  ): void {
     this.lipSyncState = {
       ...state,
-      amplitude: Math.max(0, Math.min(1, state.amplitude)),
+      amplitude: Math.min(
+        1,
+        Math.max(0, state.amplitude),
+      ),
     };
+
+    this.adapters.forEach(
+      (adapter) => {
+        adapter.setLipSync(
+          this.lipSyncState,
+        );
+      },
+    );
 
     this.emit({
       type: 'lip-sync',
-      lipSync: { ...this.lipSyncState },
+      lipSync: {
+        ...this.lipSyncState,
+      },
     });
   }
 
   /**
-   * Reset animation state back to a neutral state.
+   * Reset animation state.
    */
   reset(): void {
     this.state = 'idle';
@@ -173,6 +192,12 @@ export class AvatarAnimationController {
       timestamp: Date.now(),
     };
 
+    this.adapters.forEach(
+      (adapter) => {
+        adapter.reset();
+      },
+    );
+
     this.emit({
       type: 'reset',
     });
@@ -181,7 +206,9 @@ export class AvatarAnimationController {
   /**
    * Subscribe to normalized animation commands.
    */
-  subscribe(listener: AvatarAnimationListener): () => void {
+  subscribe(
+    listener: AvatarAnimationListener,
+  ): () => void {
     this.listeners.add(listener);
 
     return () => {
@@ -190,17 +217,21 @@ export class AvatarAnimationController {
   }
 
   /**
-   * Send a normalized animation command to subscribers.
+   * Emit normalized animation commands.
    */
-  private emit(command: AvatarAnimationCommand): void {
-    this.listeners.forEach((listener) => {
-      listener(command);
-    });
+  private emit(
+    command: AvatarAnimationCommand,
+  ): void {
+    this.listeners.forEach(
+      (listener) => {
+        listener(command);
+      },
+    );
   }
 }
 
 /**
- * Create a renderer-neutral animation controller.
+ * Create renderer-neutral animation controller.
  */
 export function createAvatarAnimationController(): AvatarAnimationController {
   return new AvatarAnimationController();
