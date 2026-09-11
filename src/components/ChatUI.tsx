@@ -17,17 +17,11 @@ import {
 } from '../types';
 
 import { ApiService } from '../services/api';
-import {
-  Avatar,
-  type AvatarMouthShape,
-} from './Avatar';
+import { Avatar } from './Avatar';
 import { AvatarAnimationController } from '../services/avatar';
 import { MemoryService } from '../services/memory';
 import { VoiceService } from '../services/voice-advanced';
-import {
-  LipSyncCoordinator,
-  MouthShape,
-} from '../services/lipsync-coordinator';
+import { LipSyncCoordinator } from '../services/lipsync-coordinator';
 
 interface ChatUIProps {
   character: Character;
@@ -35,35 +29,6 @@ interface ChatUIProps {
   onBack: () => void;
   onOpenSettings: () => void;
 }
-
-/**
- * Converts internal lip-sync mouth states
- * into the mouth states supported by Avatar.
- */
-const mapMouthShape = (
-  shape: MouthShape,
-): AvatarMouthShape => {
-  switch (shape) {
-    case 'open-small':
-      return 'open-small';
-
-    case 'open-medium':
-      return 'open-medium';
-
-    case 'open-large':
-      return 'open-large';
-
-    case 'smile':
-      return 'smile';
-
-    case 'pursed':
-      return 'pursed';
-
-    case 'closed':
-    default:
-      return 'closed';
-  }
-};
 
 export function ChatUI({
   character,
@@ -78,11 +43,14 @@ export function ChatUI({
   const [avatarState, setAvatarState] =
     useState<AvatarState>('idle');
 
-  const [mouthShape, setMouthShape] =
-    useState<AvatarMouthShape>('closed');
-
+  /**
+   * Keep the public/compatibility controller in ChatUI while the actual
+   * rendering is handled by the renderer-neutral animation controller.
+   */
   const controller =
-    useRef<AvatarAnimationController | null>(null);
+    useRef<AvatarAnimationController>(
+      new AvatarAnimationController(),
+    );
 
   const lipSyncCoordinator =
     useRef<LipSyncCoordinator | null>(null);
@@ -94,14 +62,11 @@ export function ChatUI({
     useRef<HTMLDivElement>(null);
 
   /**
-   * Create the avatar animation controller once.
+   * Subscribe to high-level avatar state changes once.
+   * Lip-sync no longer needs a React state bridge here; the coordinator
+   * forwards normalized mouth data directly to the animation controller.
    */
   useEffect(() => {
-    if (!controller.current) {
-      controller.current =
-        new AvatarAnimationController();
-    }
-
     const unsubscribe =
       controller.current.subscribe(setAvatarState);
 
@@ -112,23 +77,19 @@ export function ChatUI({
 
   /**
    * Create/reset the lip-sync coordinator whenever
-   * the active character changes.
+   * the active character changes and connect it directly
+   * to the avatar animation controller.
    */
   useEffect(() => {
     const coordinator =
       new LipSyncCoordinator(character.id);
 
     lipSyncCoordinator.current = coordinator;
-
-    const unsubscribe =
-      coordinator.subscribe((event) => {
-        setMouthShape(
-          mapMouthShape(event.mouthShape),
-        );
-      });
+    coordinator.setAnimationController(
+      controller.current,
+    );
 
     return () => {
-      unsubscribe();
       coordinator.reset();
 
       if (
@@ -136,8 +97,6 @@ export function ChatUI({
       ) {
         lipSyncCoordinator.current = null;
       }
-
-      setMouthShape('closed');
     };
   }, [character.id]);
 
@@ -191,7 +150,7 @@ export function ChatUI({
   }, [messages, isTyping]);
 
   const setState = (state: AvatarState) => {
-    controller.current?.setState(state);
+    controller.current.setState(state);
   };
 
   /**
@@ -207,7 +166,6 @@ export function ChatUI({
 
     speakingTimer.current =
       window.setTimeout(() => {
-        setMouthShape('closed');
         setState('idle');
       }, 700);
   };
@@ -249,7 +207,6 @@ export function ChatUI({
           error,
         );
 
-        setMouthShape('closed');
         finishSpeaking();
       }
     } else {
@@ -336,7 +293,6 @@ export function ChatUI({
       );
 
       setState('error');
-      setMouthShape('closed');
 
       const errorMsg: Message = {
         id: `error-${Date.now()}`,
@@ -493,7 +449,9 @@ export function ChatUI({
             character={character}
             state={avatarState}
             size="xl"
-            mouthShape={mouthShape}
+            animationController={
+              controller.current.getAnimationController()
+            }
           />
 
           <div className="mt-10 max-w-xs text-center">
