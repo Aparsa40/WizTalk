@@ -1,8 +1,46 @@
-import { Character, Message, Provider, ProviderConfig } from '../types';
-export interface ChatResponse { response: string; provider: Provider; model: string; }
-async function parseError(response: Response): Promise<Error> { try { const data = await response.json() as { error?: string }; return new Error(data.error || 'درخواست ناموفق بود.'); } catch { return new Error('ارتباط با سرور ناموفق بود.'); } }
+import { Character, Message } from '../types';
+
+export interface ChatResponse {
+  response: string;
+}
+
+async function parseError(response: Response): Promise<Error> {
+  try {
+    const data = (await response.json()) as { error?: string };
+    return new Error(data.error || 'درخواست ناموفق بود.');
+  } catch {
+    return new Error('ارتباط با سرور ناموفق بود.');
+  }
+}
+
 export class ApiService {
-  static async getCharacters(): Promise<Character[]> { const response = await fetch('/api/characters'); if (!response.ok) throw await parseError(response); return await response.json() as Character[]; }
-  static async getModels(): Promise<ProviderConfig[]> { return []; }
-  static async sendMessage(message: string, characterId: string, history: Message[] = []): Promise<ChatResponse> { const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, characterId, history: history.slice(-12) }) }); if (!response.ok) throw await parseError(response); return await response.json() as ChatResponse; }
+  static async getCharacters(): Promise<Character[]> {
+    const response = await fetch('/api/characters');
+    if (!response.ok) throw await parseError(response);
+    return (await response.json()) as Character[];
+  }
+
+  static async getModels(): Promise<never[]> {
+    // Model/provider selection is intentionally server-side after Phase 3.
+    return [];
+  }
+
+  static async sendMessage(
+    message: string,
+    characterId: string,
+    history: Message[] = []
+  ): Promise<ChatResponse> {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        characterId,
+        history: history.slice(-12),
+      }),
+    });
+
+    if (!response.ok) throw await parseError(response);
+    return (await response.json()) as ChatResponse;
+  }
 }
