@@ -428,6 +428,6 @@ export function createLipSyncCoordinator(
   character: Character,
 ): LipSyncCoordinator {
   return new LipSyncCoordinator(
-    character.id,
+    character.identity.id,
   );
 }
