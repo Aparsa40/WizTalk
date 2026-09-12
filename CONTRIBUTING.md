@@ -1,157 +1,178 @@
 # Contributing to WizTalk
 
-Thank you for your interest in contributing to WizTalk! ❤️
+Thank you for contributing to WizTalk! ❤️
 
-WizTalk is designed as an extensible AI conversational application with support for configurable characters, avatars, AI services, memory, and voice capabilities.
+WizTalk is a Persian-first modular AI character platform. The v2.0.0 release establishes the stable architecture baseline for the next generation of development.
 
-This document explains the basic workflow for contributing changes safely and consistently.
+## Development Baseline
 
-## Code of Conduct
+The current stable baseline is **v2.0.0**. It contains the completed Phase 1–8 architecture and should be treated as the starting point for new work.
 
-Please keep all contributions respectful, constructive, and focused on improving the project.
+Before changing the project:
 
-Harassment, abusive behavior, malicious changes, credential exposure, or intentionally harmful code are not acceptable.
+1. Update your local `main` from GitHub.
+2. Verify the working tree is clean.
+3. Read the relevant architecture documentation.
+4. Create a dedicated branch for the requested phase or fix.
+5. Keep the change limited to its stated scope.
+
+## Phase Branch Policy
+
+Every planned development phase must use a **new dedicated branch** created from the latest `main`.
+
+Recommended naming:
+
+```text
+feat/phase-9-real-ai-model-activation
+feat/phase-9-database-persistence
+fix/security-example
+```
+
+Do not implement multiple future phases in one branch merely because they are related.
+
+Each phase should be:
+
+- independently reviewable
+- independently testable
+- independently mergeable
+- independently reversible
+
+## Pull Requests
+
+All significant changes must be submitted through a Pull Request targeting `main`.
+
+A Pull Request should explain:
+
+- what changed
+- why it changed
+- which phase/scope it belongs to
+- important architectural decisions
+- tests/checks performed
+- known limitations
+
+**Do not merge a phase automatically.** The project owner reviews the PR and explicitly approves the merge.
 
 ## Before You Start
-
-Before making changes:
-
-1. Make sure you have Git installed.
-2. Make sure Node.js and npm are installed.
-3. Clone the repository.
-4. Install project dependencies.
-5. Create a dedicated feature or fix branch.
-
-Example:
 
 ```bash
 git clone https://github.com/Aparsa40/WizTalk.git
 cd WizTalk
 npm install
+git checkout main
+git pull origin main
+git checkout -b feat/my-change
 ```
 
----
-Create a branch:
+## Development Commands
 
-git checkout -b feature/my-change
-
-For a bug fix:
-
-git checkout -b fix/my-fix
-Development
-
-Run the local development server:
-
+```bash
 npm run dev
-
-Before submitting changes, make sure the project builds successfully:
-
-npm run build
-
-Run available tests with:
-
+npm run lint
 npm test
+npm run build
+```
 
-If the project does not currently define a test script, do not add a fake test command. Add or update the appropriate test infrastructure first.
+Run the commands relevant to your change before opening the PR. Do not invent commands that are not defined by the repository.
 
-Project Structure
+## Architecture Rules
 
-WizTalk separates responsibilities between the user interface, application/domain logic, and services.
+### Character isolation
 
-When making changes:
+Each Character must remain independently configurable. Do not introduce shared mutable Character configuration or cross-Character state leakage.
 
-Keep UI components focused on presentation and interaction.
-Keep business logic outside presentation components where practical.
-Keep API communication inside the appropriate service layer.
-Do not expose API keys or other secrets to the browser.
-Use environment variables for sensitive server-side configuration.
-Avoid introducing unnecessary global state.
-Prefer reusable components and services.
-Keep character configuration separate from character presentation where possible.
-Character and Avatar Changes
+### Response architecture
 
-Changes involving characters or avatars should preserve the application's configurable architecture.
+AI response orchestration belongs to `ResponseManager`. Provider adapters should perform provider-specific execution and must not bypass the manager's fallback/error boundary.
 
-When adding a character:
+### Voice architecture
 
-Use the existing character model and service architecture.
-Avoid hard-coding character-specific behavior into generic UI components.
-Keep character configuration data separate from UI rendering logic.
-Verify character selection, creation, editing, and deletion behavior where applicable.
-Check both desktop and responsive layouts.
-AI and API Changes
+Voice orchestration belongs to `VoiceManager`. A voice failure must not discard an otherwise valid text response.
 
-AI-related functionality must not expose provider credentials in client-side code.
+### Avatar architecture
 
-Do not:
+Keep Avatar state/control independent from concrete rendering technology. New renderers should integrate through the existing renderer-neutral abstractions.
 
-Commit API keys.
-Store API keys in localStorage.
-Put secrets directly in React components.
-Commit .env files containing real credentials.
-Log sensitive credentials.
+### Server/client boundary
 
-Use server-side environment variables and the existing service architecture.
+Keep provider credentials and other secrets server-side. Never put API keys in React code, localStorage, committed `.env` files, or client-visible responses.
 
-Commit Messages
+### User-facing settings
 
-Use clear and descriptive commit messages.
+Provider credentials, internal AI strategy, and other infrastructure details should remain internal unless a specific product phase explicitly makes them user-facing.
 
-Recommended format:
+## Character and Avatar Changes
 
-type: short description
+When adding or changing a Character:
 
-Examples:
+- use the existing Character schema
+- keep Character data separate from UI rendering
+- preserve normalization/migration behavior where applicable
+- verify Character switching and isolation
+- test responsive layouts
 
+When changing Avatar behavior:
+
+- preserve existing states and controller boundaries
+- avoid coupling ChatUI directly to a concrete renderer
+- verify voice/avatar event coordination
+
+## AI and API Changes
+
+AI-related changes must preserve server-side credential handling.
+
+Never:
+
+- commit API keys
+- store API keys in localStorage
+- put secrets in React components
+- commit real credentials in `.env`
+- log credentials or sensitive provider payloads
+- expose raw provider exceptions to the browser
+
+## Persistence and User Data
+
+The v2.0.0 baseline currently uses browser-local persistence for custom Characters, user-facing settings, and conversation memory. Future database/account work must preserve explicit user and Character ownership boundaries.
+
+## Commit Messages
+
+Use focused Conventional Commit-style messages:
+
+```text
 feat: add character manager
 fix: handle missing avatar configuration
 refactor: separate character service
-docs: update contribution guidelines
-test: add character service tests
-chore: update dependencies
+docs: update roadmap
+test: add response manager coverage
+chore: update dependency metadata
+```
 
-Keep commits focused. Avoid combining unrelated changes into a single commit.
+Avoid mixing unrelated work in one commit.
 
-Pull Requests
-
-All significant changes should be submitted through a Pull Request.
-
-A good Pull Request should:
-
-Have a clear title.
-Explain what changed.
-Explain why the change was needed.
-Mention important architectural changes.
-Include relevant testing information.
-Avoid unrelated modifications.
-
-Before opening a Pull Request, verify:
-
-npm install
-npm run build
-
-and run the available test and lint commands defined by the project.
-
-Pull Request Checklist
+## Pull Request Checklist
 
 Before submitting:
 
- Code builds successfully.
- Tests pass, when tests are available.
- No API keys or secrets are committed.
- No unnecessary generated files are committed.
- New functionality is documented when appropriate.
- Existing functionality has been checked for regressions.
- Commit messages are clear.
- The Pull Request description explains the change.
-Security
+- [ ] Scope belongs to the declared phase/fix.
+- [ ] A dedicated branch was used.
+- [ ] No future-phase work was introduced.
+- [ ] Character isolation is preserved.
+- [ ] ResponseManager/VoiceManager boundaries are preserved where relevant.
+- [ ] No secrets are committed.
+- [ ] `npm run lint` passes.
+- [ ] `npm test` passes when applicable.
+- [ ] `npm run build` passes.
+- [ ] Documentation is updated when behavior/architecture changes.
+- [ ] No unrelated generated files are included.
+- [ ] PR description contains testing information and limitations.
 
-If you discover a security vulnerability, do not disclose sensitive details in a public Issue.
+## Security
 
-Please follow the instructions in SECURITY.md.
+For vulnerabilities, follow `SECURITY.md` rather than opening a public Issue containing sensitive details.
 
-Questions and Improvements
+## Questions and Architectural Changes
 
-If you are unsure about an architectural decision, document the reasoning in the Pull Request and ask for review before introducing a large structural change.
+For a large architectural change, document the reasoning in the PR and keep it isolated from unrelated feature work. If the change belongs to a future roadmap phase, do not pull that phase forward without an explicit project decision.
 
-Thank you for helping make WizTalk better! 🚀
+## License
+
+By contributing, you agree that your contribution is provided under the project's MIT License.

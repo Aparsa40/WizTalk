@@ -2,218 +2,127 @@
 
 ## Reporting Security Vulnerabilities
 
-If you discover a security vulnerability in WizTalk, please email **security@wiztalk.dev** instead of using the issue tracker. This allows us to address the issue before it becomes public knowledge.
+If you discover a security vulnerability in WizTalk, please use the repository's private security reporting mechanism rather than publishing sensitive details in a public Issue.
 
-When reporting a vulnerability, please provide:
-- Description of the vulnerability
+When reporting a vulnerability, include:
+- Description
 - Steps to reproduce
 - Potential impact
-- Any suggested fixes (if available)
+- Suggested mitigation, if known
 
-We appreciate responsible disclosure and will work with you to resolve security issues promptly.
+## Security Baseline — v2.0.0
 
-## Security Practices in WizTalk v1.1.0
+WizTalk v2.0.0 is the stable architectural baseline after completion of the initial Phase 1–8 roadmap.
 
-### API Key Management (Critical)
+### API Key Management
 
-**Server-Side Only Implementation**
-- All API keys (GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY) are handled exclusively on the server
-- API keys are **NEVER** exposed to browser code or sent to the frontend
-- API keys are **NEVER** stored in localStorage or cookies
-- Provider credentials remain protected in server environment variables
+- `GEMINI_API_KEY`, `OPENAI_API_KEY`, and `OPENROUTER_API_KEY` are server-side credentials.
+- Provider credentials must never be exposed to browser code.
+- Provider credentials must never be stored in localStorage or committed to source control.
+- Client requests identify the Character and message; provider credentials remain behind the server boundary.
 
-**Provider Isolation**
-- Each AI provider routes through secure server endpoints
-- Client sends only the message and character ID
-- Server validates character configuration server-side
-- Response is returned to client without exposing provider details
+### Provider Isolation
 
-### Character Configuration Security
+AI providers execute through the server-side service layer. `ResponseManager` owns response orchestration and fallback behavior. Raw provider exceptions must not be returned to the UI.
 
-**Character Data Validation**
-- Built-in characters loaded from verified JSON files
-- Custom character data from browser is treated as untrusted
-- Character system instructions are validated on the server
-- Character configurations are sanitized before use
+### Character Trust Boundaries
 
-**Trust Levels**
-- Built-in characters: Trusted (filesystem source)
-- Custom characters: Untrusted (browser-created, localStorage source)
-- Custom character system instructions never override server-side safety checks
+- Built-in Character definitions are trusted repository data.
+- Custom Character data is untrusted user-controlled data.
+- Character configuration must be validated and normalized before server-side use.
+- Custom instructions must not bypass server-side safety controls.
+- Character A must never gain access to Character B's private state or configuration.
 
 ### Rate Limiting
 
-**API Protection**
-- Chat endpoint: 30 requests per 60 seconds per IP
-- Static file endpoint: 120 requests per 60 seconds per IP
-- Per-IP rate limiting prevents brute force attacks
-- Persian error messages for rejected requests
+The current server protects the main API surfaces with rate limiting. Any future public endpoint must receive an explicit rate-limit and abuse-resistance review.
 
-### Input Validation
+### Input and Output Validation
 
-**Message Validation**
-- Empty messages rejected
-- Character ID validated as string
-- Provider validated against allowed set: 'local', 'gemini', 'openai', 'openrouter'
-- Model selection validated against provider's allowed models
-- History limited to last 12 messages for context
+- Empty or malformed chat requests are rejected.
+- Character identifiers are validated server-side.
+- Provider/model choices are constrained to supported configurations.
+- Conversation history sent to providers is bounded.
+- Voice parameters are constrained to safe ranges.
+- Provider responses are validated before being accepted by `ResponseManager`.
+- Empty/invalid provider responses trigger fallback rather than reaching the UI.
 
-**Voice Input Validation**
-- Speech recognition language constrained to character-specific settings
-- Voice parameters (speechRate, pitch, volume) bounded to safe ranges
-- Voice ID validated against available system voices
+### Voice and Avatar Security
 
-### Architecture Security
+Voice and Avatar event systems run through defined application boundaries. New external voice providers must use server-side credentials and must not introduce direct browser-to-provider secret exposure.
 
-**Separation of Concerns**
-- Client-side: UI, local state, voice input/output
-- Server-side: AI provider integration, character system instructions, API key management
-- No mixing of trusted and untrusted data
-- Clear trust boundaries
+### Data Privacy — Current v2.0.0 State
 
-**Future Providers**
-- Any new voice provider implementation must follow same server-side key management
-- External TTS/STT services must use server-side proxies
-- No direct client-to-provider communication
+The current baseline stores custom Characters, user-facing Character settings, and conversation memory in browser-local storage.
 
-### Data Privacy
+Important limitations:
 
-**Local Storage**
-- Conversation history stored locally in user's browser
-- User profile stored locally
-- Custom characters stored locally
-- No data sent to external services except AI providers (as configured)
+- localStorage is not encrypted storage.
+- There is currently no account/authentication system.
+- There is currently no database-backed cross-device synchronization.
+- Cloud AI providers may receive conversation content when configured and used by the application.
 
-**Conversation History**
-- Chat messages only sent to configured AI provider
-- Messages are not stored by WizTalk on any server
-- Users can clear conversation history locally
-- Per-character memory isolation
+Future database/account phases must introduce explicit user ownership and authorization checks before cloud persistence is considered complete.
 
-### Transport Security
+### Transport and Deployment
 
-**HTTPS Recommended**
-- Use HTTPS in production
-- All API communication should be encrypted in transit
-- Environment variables should not be exposed over unsecured channels
+Production deployments should use HTTPS. Environment secrets must be configured through the deployment platform's secret/environment mechanism and must never be committed.
 
-**CORS and CSP**
-- Server implements appropriate CORS headers
-- Content Security Policy recommended for production
-- Express middleware hardened against common attacks
+Review CORS, security headers, Content Security Policy, logging, and rate limits before production exposure.
 
-### Dependencies
+### Dependency Security
 
-**Package Management**
-- Dependencies regularly reviewed for security vulnerabilities
-- Lock file (`package-lock.json`) pinned to specific versions
-- `qs` package pinned to 6.16.0 or higher for security
-- npm audit recommended before deployment
+- `package-lock.json` is committed and should be kept synchronized with `package.json`.
+- `qs` is pinned/overridden to `6.16.0` or newer as appropriate.
+- Run dependency audits before releases and security-sensitive changes:
 
-**Vulnerability Scanning**
 ```bash
 npm audit
-npm audit fix  # For security patches
-```
-
-### Version Security
-
-**v1.1.0 Security Enhancements**
-- Voice provider abstraction prevents hardcoding provider details
-- Per-character voice configuration doesn't expose provider implementation
-- Lip-sync event architecture doesn't leak provider information
-- All voice events remain on client side
-
-### Password and Authentication
-
-**Current Status**
-- v1.1.0 does not implement authentication
-- Future versions should implement:
-  - User accounts and login
-  - JWT or session-based authentication
-  - Password hashing (bcrypt or similar)
-  - 2FA support
-
-**Recommendations for Deployment**
-- Implement authentication before using in production
-- Use OAuth2 for third-party integrations
-- Implement user authorization checks
-- Audit user access and data
-
-### Error Handling
-
-**Security-Conscious Errors**
-- Error messages don't expose internal implementation details
-- API errors use generic messages for clients
-- Server logs contain detailed error information
-- No stack traces exposed to browser
-
-**Persian Error Messages**
-- Error messages localized for user clarity
-- Error messages don't reveal security details
-- User guidance provided without exposing vulnerabilities
-
-### Testing Security
-
-**Recommended Testing**
-```bash
-# TypeScript type checking
 npm run lint
-
-# Build verification
+npm test
 npm run build
-
-# Dependency audit
-npm audit
-
-# Manual security review
-# - Verify API keys not in code
-# - Verify no secrets in git history
-# - Verify server-side validation
-# - Verify rate limiting works
 ```
 
-### Deployment Security Checklist
+Do not blindly apply `npm audit fix` when it would introduce unrelated or breaking dependency changes; review the resulting diff.
 
-- [ ] All API keys configured as environment variables
-- [ ] No secrets in `.env` file (use `.env.example` template)
-- [ ] HTTPS enabled for all connections
-- [ ] Rate limiting verified in production
-- [ ] CORS properly configured
-- [ ] Content Security Policy headers set
-- [ ] npm audit passed with no vulnerabilities
-- [ ] Error logging configured (no sensitive data)
-- [ ] Regular dependency updates scheduled
-- [ ] Backup strategy for user data
-- [ ] Access logs monitored for suspicious activity
+## Version Security Policy
 
-### Known Limitations
+- PATCH releases are used for security fixes and maintenance where possible.
+- Significant security fixes may require an emergency release.
+- Security-impacting changes must be documented in `CHANGELOG.md`.
+- Release baselines are recorded in `RELEASE.md`.
 
-- **Authentication**: v1.1.0 does not include user authentication (future work)
-- **Encryption**: Local storage not encrypted (user's browser is responsible)
-- **Provider Validation**: Assumes GEMINI_API_KEY and OPENAI_API_KEY are valid (server trust boundary)
-- **Voice Events**: Lip-sync events processed client-side without server oversight
+## Current Known Security Limitations
 
-### Reporting a Bug
+v2.0.0 does **not** yet provide:
 
-If you find a non-security bug, please use the [GitHub Issues](https://github.com/Aparsa40/WizTalk/issues) tracker.
+- user authentication and authorization
+- database-backed access control
+- encrypted application-level conversation storage
+- production moderation layer
+- production tool/agent permission architecture
 
-For security-related issues, please email directly as described above.
+These are planned post-v2 development areas and should not be represented as already implemented.
 
-### Security Updates
+## Security Review Checklist
 
-- Security patches will be released as PATCH versions (x.y.Z)
-- Major security issues may trigger emergency releases
-- All security updates will be documented in CHANGELOG.md
-- Users are encouraged to update frequently
+Before production-oriented changes:
 
-### Contact
+- [ ] No secrets in source, client bundles, localStorage, or commits.
+- [ ] Server-side validation is present.
+- [ ] Character/user ownership boundaries are enforced where applicable.
+- [ ] Provider errors are contained.
+- [ ] Rate limiting is verified.
+- [ ] Dependencies are audited.
+- [ ] HTTPS is enabled.
+- [ ] Security headers/CSP are reviewed.
+- [ ] Logs contain no credentials or unnecessary sensitive content.
+- [ ] Relevant tests/build checks pass.
 
-**Security Team**: security@wiztalk.dev
-**GitHub Issues**: https://github.com/Aparsa40/WizTalk/issues
-**Responsible Disclosure**: https://github.com/Aparsa40/WizTalk/security/policy
+## Contact
+
+For the current repository security-reporting mechanism, use GitHub's private security reporting features. Do not publish credentials, exploit details, or sensitive user data in public Issues.
 
 ---
 
-**Last Updated**: 2026-09-06 (v1.1.0)
-**Next Review**: Scheduled after major updates or security incidents
+**Last Updated:** 2026-09-12 — v2.0.0 baseline
