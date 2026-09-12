@@ -1,47 +1,39 @@
 import type { ReactElement } from 'react';
 
 export type Provider =
-| 'local'
-| 'gemini'
-| 'openai'
-| 'openrouter';
+  | 'local'
+  | 'gemini'
+  | 'openai'
+  | 'openrouter';
 
 export type AvatarState =
-| 'idle'
-| 'listening'
-| 'thinking'
-| 'speaking'
-| 'error';
+  | 'idle'
+  | 'listening'
+  | 'thinking'
+  | 'speaking'
+  | 'error';
 
 export type AvatarType =
-| 'portrait'
-| 'illustration'
-| 'animated-2d'
-| 'svg'
-| 'video'
-| 'live2d'
-| 'canvas-3d';
+  | 'portrait'
+  | 'illustration'
+  | 'animated-2d'
+  | 'svg'
+  | 'video'
+  | 'live2d'
+  | 'canvas-3d';
 
 export type VoiceProvider =
-| 'browser'
-| 'external';
+  | 'browser'
+  | 'external';
 
 export interface PersonalityConfig {
-description: string;
-behavior: string;
-tone: string;
-communicationStyle: string;
+  description: string;
+  behavior: string;
+  tone: string;
+  communicationStyle: string;
 }
 
-/**
-
-* Character-specific avatar configuration.
-*
-* Each character owns an independent avatar configuration.
-* The renderer can later be implemented with SVG, Canvas, Live2D,
-* or a 3D renderer without changing the character model.
-  */
-  export interface AvatarConfig {
+export interface AvatarConfig {
   type: AvatarType;
   source: string;
   fallbackSource?: string;
@@ -52,17 +44,18 @@ communicationStyle: string;
   errorSource?: string;
   animationSpeed?: 'slow' | 'normal' | 'fast';
   customAnimationData?: Record<string, unknown>;
-  }
+}
 
-/**
+export interface TextModelConfig {
+  provider: Provider;
+  model: string;
+}
 
-* Character-specific voice configuration.
-*
-* Browser SpeechSynthesis is currently supported.
-* External providers such as Piper can be introduced without
-* changing the Character interface.
-  */
-  export interface VoiceConfig {
+export interface TextModelsConfig {
+  default: TextModelConfig;
+}
+
+export interface VoiceConfig {
   provider: VoiceProvider;
   voiceId?: string;
   language: string;
@@ -71,175 +64,308 @@ communicationStyle: string;
   rate?: number;
   pitch?: number;
   volume?: number;
-  voiceName?: string;
-  }
+  voiceName?: string | null;
+}
+
+export interface VoiceModelsConfig {
+  default: VoiceConfig;
+}
+
+export interface FAQItem {
+  question?: string;
+  keywords: string[];
+  response: string;
+  answer?: string;
+  category?: string;
+}
+
+export interface FAQKnowledge {
+  source?: 'shared';
+  entries?: FAQItem[];
+}
+
+export interface RawKnowledge {
+  content: string;
+}
+
+export interface KnowledgeSource {
+  type: string;
+  [key: string]: unknown;
+}
+
+export interface CharacterKnowledge {
+  faq: FAQKnowledge;
+  raw: RawKnowledge;
+  sources: Record<string, KnowledgeSource>;
+}
+
+export interface CharacterIdentity {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  role: string;
+  personality: PersonalityConfig;
+  greeting: string;
+  systemInstructions: string;
+}
+
+export interface CharacterSettings {
+  enabled: boolean;
+  source?: 'builtin' | 'custom';
+}
+
+export interface Character {
+  identity: CharacterIdentity;
+  avatar: AvatarConfig;
+  knowledge: CharacterKnowledge;
+  textModels: TextModelsConfig;
+  voiceModels: VoiceModelsConfig;
+  settings: CharacterSettings;
+}
+
 
 /**
+ * ساختار قدیمی برای migration
+ */
+export interface LegacyCharacter {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  role: string;
+  personality: PersonalityConfig;
+  greeting: string;
+  systemInstructions: string;
+  avatar: AvatarConfig;
+  ai: TextModelConfig;
+  voice: VoiceConfig;
+  enabled: boolean;
+  source?: 'builtin' | 'custom';
+}
 
-* AI provider and model configuration.
-  */
-  export interface AIConfig {
-  provider: Provider;
-  model: string;
-  }
 
 /**
+ * تبدیل Character قدیمی به ساختار جدید
+ */
+export function normalizeCharacter(
+  raw: Character | LegacyCharacter | Record<string, unknown>,
+  source: 'builtin' | 'custom' = 'builtin',
+): Character {
 
-* Character represents an independent AI character with its own:
-*
-* * Avatar rendering and animation
-* * Voice configuration and synthesis
-* * AI model and provider settings
-* * Memory and conversation history
-* * Personality and interaction traits
-    */
-    export interface Character {
-    id: string;
-    name: string;
-    displayName: string;
-    description: string;
-    role: string;
-    personality: PersonalityConfig;
-    greeting: string;
-    systemInstructions: string;
-    avatar: AvatarConfig;
-    ai: AIConfig;
-    voice: VoiceConfig;
-    enabled: boolean;
-    source?: 'builtin' | 'custom';
-    }
+  const value = raw as Record<string, any>;
+
+  const identity = value.identity ?? value;
+
+  const personality =
+    typeof identity.personality === 'string'
+      ? {
+          description: identity.personality,
+          behavior: '',
+          tone: '',
+          communicationStyle: '',
+        }
+      : identity.personality ?? {};
+
+
+  const avatar =
+    typeof value.avatar === 'string'
+      ? {
+          type: 'portrait',
+          source: value.avatar,
+        }
+      : value.avatar ?? {};
+
+
+  const faq =
+    value.knowledge?.faq ?? {
+      source: 'shared',
+    };
+
+
+  return {
+    identity: {
+      id: String(identity.id ?? ''),
+      name: String(identity.name ?? ''),
+      displayName: String(identity.displayName ?? ''),
+      description: String(identity.description ?? ''),
+      role: String(identity.role ?? ''),
+
+      personality: {
+        description: String(personality.description ?? ''),
+        behavior: String(personality.behavior ?? ''),
+        tone: String(personality.tone ?? ''),
+        communicationStyle:
+          String(personality.communicationStyle ?? ''),
+      },
+
+      greeting: String(identity.greeting ?? ''),
+      systemInstructions:
+        String(identity.systemInstructions ?? ''),
+    },
+
+
+    avatar: {
+      type:
+        (avatar.type ?? 'portrait') as AvatarType,
+      source:
+        String(avatar.source ?? ''),
+      ...avatar,
+    },
+
+
+    knowledge: {
+      faq: {
+        source: faq.source,
+        entries:
+          Array.isArray(faq.entries)
+            ? faq.entries
+            : undefined,
+      },
+
+      raw: {
+        content:
+          String(value.knowledge?.raw?.content ?? ''),
+      },
+
+      sources:
+        value.knowledge?.sources &&
+        typeof value.knowledge.sources === 'object'
+          ? value.knowledge.sources
+          : {},
+    },
+
+
+    textModels: {
+      default: {
+        provider:
+          value.textModels?.default?.provider ??
+          value.ai?.provider ??
+          'local',
+
+        model:
+          String(
+            value.textModels?.default?.model ??
+            value.ai?.model ??
+            'faq-keyword-v1',
+          ),
+      },
+    },
+
+
+    voiceModels: {
+      default: {
+        provider:
+          value.voiceModels?.default?.provider ??
+          value.voice?.provider ??
+          'browser',
+
+        language:
+          String(
+            value.voiceModels?.default?.language ??
+            value.voice?.language ??
+            'fa-IR',
+          ),
+
+        enabled:
+          value.voiceModels?.default?.enabled ??
+          (value.voice?.enabled !== false),
+
+        ...(value.voice ?? {}),
+        ...(value.voiceModels?.default ?? {}),
+      },
+    },
+
+
+    settings: {
+      enabled:
+        value.settings?.enabled ??
+        (value.enabled !== false),
+
+      source:
+        value.settings?.source ??
+        value.source ??
+        source,
+    },
+  };
+}
+
 
 export interface Message {
-id: string;
-sender: 'user' | 'character';
-text: string;
-timestamp: number;
+  id: string;
+  sender: 'user' | 'character';
+  text: string;
+  timestamp: number;
 }
+
 
 export interface UserProfile {
-name: string;
-preferredAddress: string;
-interests: string[];
-notes: string;
+  name: string;
+  preferredAddress: string;
+  interests: string[];
+  notes: string;
 }
+
 
 export interface AppState {
-selectedCharacterId: string | null;
-provider: Provider;
-model: string;
-voiceEnabled: boolean;
-userProfile: UserProfile;
+  selectedCharacterId: string | null;
+  provider: Provider;
+  model: string;
+  voiceEnabled: boolean;
+  userProfile: UserProfile;
 }
+
 
 export interface ProviderConfig {
-id: Provider;
-label: string;
-description: string;
-defaultModel: string;
-models: string[];
-requiresServerKey: boolean;
+  id: Provider;
+  label: string;
+  description: string;
+  defaultModel: string;
+  models: string[];
+  requiresServerKey: boolean;
 }
 
-/**
 
-* Voice lifecycle event types.
-*
-* "resume" is also used by the current browser TTS implementation
-* for speech-boundary updates because SpeechSynthesis does not expose
-* a dedicated phoneme event.
-  */
-  export type VoiceEventType =
+export type VoiceEventType =
   | 'start'
   | 'end'
   | 'pause'
   | 'resume';
 
-/**
 
-* Source of the audio/timing information represented by a VoiceEvent.
-*
-* Browser TTS currently provides timing/heuristic information.
-* External providers such as Piper can later provide real audio data.
-  */
-  export type VoiceEventSource =
+export type VoiceEventSource =
   | 'browser'
   | 'piper'
   | 'external';
 
-/**
 
-* Voice event emitted during speech playback.
-*
-* The current browser implementation uses timing and estimated amplitude.
-* Future local/external audio providers can populate the additional
-* audio-analysis fields without changing the event contract.
-  */
-  export interface VoiceEvent {
+export interface VoiceEvent {
   type: VoiceEventType;
   characterId: string;
   timestamp: number;
 
-/**
-
-* Normalized speech amplitude in the range 0..1 when available.
-  */
   amplitude?: number;
-
-/**
-
-* Optional phoneme/viseme hint produced by the voice provider.
-  */
   phoneme?: string;
-
-/**
-
-* Duration represented by this event in milliseconds.
-  */
   duration?: number;
-
-/**
-
-* Identifies where the event originated.
-  */
   source?: VoiceEventSource;
-
-/**
-
-* True when amplitude represents measured audio rather than
-* a timing/phonetic estimate.
-  */
   measured?: boolean;
-
-/**
-
-* Optional normalized audio level for Web Audio based providers.
-*
-* This is intentionally separate from amplitude so future
-* audio-analysis pipelines can evolve independently.
-  */
   audioLevel?: number;
-  }
+}
 
-/**
 
-* Voice event listener for avatar and lip-sync synchronization.
-  */
-  export type VoiceEventListener = (
-  event: VoiceEvent
-  ) => void;
+export type VoiceEventListener =
+  (event: VoiceEvent) => void;
 
-/**
 
-* Avatar renderer interface allows different implementations
-* (2D, SVG, Canvas, Live2D, 3D).
-  */
-  export interface AvatarRenderer {
+export interface AvatarRenderer {
+
   render(
-  state: AvatarState,
-  config: AvatarConfig
+    state: AvatarState,
+    config: AvatarConfig,
   ): ReactElement;
 
-preload?(
-config: AvatarConfig
-): Promise<void>;
+
+  preload?(
+    config: AvatarConfig,
+  ): Promise<void>;
 }

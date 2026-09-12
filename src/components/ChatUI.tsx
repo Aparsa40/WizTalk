@@ -43,10 +43,6 @@ export function ChatUI({
   const [avatarState, setAvatarState] =
     useState<AvatarState>('idle');
 
-  /**
-   * Keep the public/compatibility controller in ChatUI while the actual
-   * rendering is handled by the renderer-neutral animation controller.
-   */
   const controller =
     useRef<AvatarAnimationController>(
       new AvatarAnimationController(),
@@ -61,11 +57,7 @@ export function ChatUI({
   const messagesEndRef =
     useRef<HTMLDivElement>(null);
 
-  /**
-   * Subscribe to high-level avatar state changes once.
-   * Lip-sync no longer needs a React state bridge here; the coordinator
-   * forwards normalized mouth data directly to the animation controller.
-   */
+
   useEffect(() => {
     const unsubscribe =
       controller.current.subscribe(setAvatarState);
@@ -75,16 +67,15 @@ export function ChatUI({
     };
   }, []);
 
-  /**
-   * Create/reset the lip-sync coordinator whenever
-   * the active character changes and connect it directly
-   * to the avatar animation controller.
-   */
+
   useEffect(() => {
     const coordinator =
-      new LipSyncCoordinator(character.id);
+      new LipSyncCoordinator(
+        character.identity.id,
+      );
 
     lipSyncCoordinator.current = coordinator;
+
     coordinator.setAnimationController(
       controller.current,
     );
@@ -98,33 +89,38 @@ export function ChatUI({
         lipSyncCoordinator.current = null;
       }
     };
-  }, [character.id]);
+  }, [character.identity.id]);
 
-  /**
-   * Load conversation history and initialize
-   * the character greeting.
-   */
+
   useEffect(() => {
     const saved =
-      MemoryService.getMessages(character.id);
+      MemoryService.getMessages(
+        character.identity.id,
+      );
 
     if (saved.length > 0) {
       setMessages(saved);
     } else {
       const greeting: Message = {
-        id: `greeting-${character.id}`,
+        id:
+          typeof crypto !== 'undefined' &&
+          typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : String(Date.now()),
+
         sender: 'character',
-        text: character.greeting,
+        text: character.identity.greeting,
         timestamp: Date.now(),
       };
 
       MemoryService.saveMessage(
-        character.id,
+        character.identity.id,
         greeting,
       );
 
       setMessages([greeting]);
     }
+
 
     return () => {
       VoiceService.abortListening();
@@ -138,25 +134,23 @@ export function ChatUI({
 
       lipSyncCoordinator.current?.reset();
     };
-  }, [character.id]);
+  }, [character.identity.id]);
 
-  /**
-   * Keep the latest message visible.
-   */
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
       behavior: 'smooth',
     });
   }, [messages, isTyping]);
 
-  const setState = (state: AvatarState) => {
+
+  const setState = (
+    state: AvatarState,
+  ) => {
     controller.current.setState(state);
   };
 
-  /**
-   * Finish speaking with a small delay so the
-   * avatar does not instantly snap to idle.
-   */
+
   const finishSpeaking = () => {
     if (speakingTimer.current) {
       window.clearTimeout(
@@ -170,11 +164,7 @@ export function ChatUI({
       }, 700);
   };
 
-  /**
-   * Receives voice lifecycle events from the
-   * advanced VoiceService and forwards them
-   * to the LipSyncCoordinator.
-   */
+
   const handleVoiceEvent = (
     event: VoiceEvent,
   ) => {
@@ -183,15 +173,14 @@ export function ChatUI({
     );
   };
 
-  /**
-   * Speak a character response.
-   */
-  const speak = async (text: string) => {
+
+  const speak = async (
+    text: string,
+  ) => {
     setState('speaking');
 
     if (
-      appState.voiceEnabled &&
-      character.voice.enabled
+      character.voiceModels.default.enabled
     ) {
       try {
         await VoiceService.speak(
@@ -214,15 +203,18 @@ export function ChatUI({
     }
   };
 
-  /**
-   * Send a text message to the AI backend.
-   */
-  const handleSend = async () => {
-    const trimmedInput = input.trim();
 
-    if (!trimmedInput || isTyping) {
+  const handleSend = async () => {
+    const trimmedInput =
+      input.trim();
+
+    if (
+      !trimmedInput ||
+      isTyping
+    ) {
       return;
     }
+
 
     const userMsg: Message = {
       id:
@@ -236,6 +228,7 @@ export function ChatUI({
       timestamp: Date.now(),
     };
 
+
     const nextMessages = [
       ...messages,
       userMsg,
@@ -244,24 +237,27 @@ export function ChatUI({
     setMessages(nextMessages);
 
     MemoryService.saveMessage(
-      character.id,
+      character.identity.id,
       userMsg,
     );
+
 
     setInput('');
     setIsTyping(true);
     setState('thinking');
 
+
     try {
       const result =
         await ApiService.sendMessage(
           userMsg.text,
-          character.id,
+          character.identity.id,
           appState.provider,
           appState.model,
           nextMessages,
           character,
         );
+
 
       const characterMsg: Message = {
         id:
@@ -275,17 +271,23 @@ export function ChatUI({
         timestamp: Date.now(),
       };
 
+
       setMessages((current) => [
         ...current,
         characterMsg,
       ]);
 
+
       MemoryService.saveMessage(
-        character.id,
+        character.identity.id,
         characterMsg,
       );
 
-      await speak(characterMsg.text);
+
+      await speak(
+        characterMsg.text,
+      );
+
     } catch (error) {
       console.error(
         'Chat request failed',
@@ -293,6 +295,7 @@ export function ChatUI({
       );
 
       setState('error');
+
 
       const errorMsg: Message = {
         id: `error-${Date.now()}`,
@@ -304,22 +307,23 @@ export function ChatUI({
         timestamp: Date.now(),
       };
 
+
       setMessages((current) => [
         ...current,
         errorMsg,
       ]);
 
+
       window.setTimeout(() => {
         setState('idle');
       }, 2500);
+
     } finally {
       setIsTyping(false);
     }
   };
 
-  /**
-   * Start/stop browser speech recognition.
-   */
+
   const toggleListening = () => {
     if (isListening) {
       VoiceService.stopListening();
@@ -329,6 +333,7 @@ export function ChatUI({
 
       return;
     }
+
 
     const recognition =
       VoiceService.initSpeechToText(
@@ -362,6 +367,7 @@ export function ChatUI({
         },
       );
 
+
     if (
       !recognition ||
       !VoiceService.startListening()
@@ -376,13 +382,12 @@ export function ChatUI({
       return;
     }
 
+
     setIsListening(true);
     setState('listening');
   };
 
-  /**
-   * Replay the latest character response.
-   */
+
   const repeatLast = async () => {
     const lastCharacterMessage =
       [...messages]
@@ -392,14 +397,15 @@ export function ChatUI({
             item.sender === 'character',
         );
 
+
     if (lastCharacterMessage) {
       await speak(
         lastCharacterMessage.text,
       );
     }
   };
-
-  return (
+  
+ return (
     <div className="flex h-screen flex-col bg-[#12091f] text-amber-50">
       {/* Header */}
       <header className="flex items-center justify-between border-b border-white/10 bg-[#241437]/80 p-4 shadow-lg backdrop-blur-md">
@@ -414,7 +420,7 @@ export function ChatUI({
 
         <div className="text-center">
           <h2 className="font-serif text-xl font-bold text-amber-300">
-            {character.displayName}
+            {character.identity.displayName}
           </h2>
 
           <span className="text-xs text-amber-50/50">
@@ -436,15 +442,14 @@ export function ChatUI({
 
       {/* Main */}
       <main className="relative flex flex-1 flex-col overflow-hidden md:flex-row">
-        {/* Background effects */}
         <div className="pointer-events-none absolute inset-0 opacity-20">
           <div className="absolute left-10 top-1/4 h-72 w-72 rounded-full bg-violet-700 blur-3xl" />
 
           <div className="absolute bottom-0 right-10 h-72 w-72 rounded-full bg-amber-700 blur-3xl" />
         </div>
 
-        {/* Avatar panel */}
-        <aside className="z-10 flex shrink-0 flex-col items-center justify-center border-b border-white/10 bg-linear-to-b from-[#1d1030] to-transparent p-5 md:w-[36%] md:border-b-0 md:border-l">
+        {/* Avatar */}
+        <aside className="z-10 flex shrink-0 flex-col items-center justify-center border-b border-white/10 bg-gradient-to-b from-[#1d1030] to-transparent p-5 md:w-[36%] md:border-b-0 md:border-l">
           <Avatar
             character={character}
             state={avatarState}
@@ -456,22 +461,21 @@ export function ChatUI({
 
           <div className="mt-10 max-w-xs text-center">
             <h3 className="text-lg font-bold text-amber-200">
-              {character.name}
+              {character.identity.name}
             </h3>
 
             <p className="mt-2 text-sm leading-6 text-amber-50/60">
-              {character.description}
+              {character.identity.description}
             </p>
 
             <p className="mt-4 text-xs text-amber-300/50">
-              {character.personality.tone}
+              {character.identity.personality.tone}
             </p>
           </div>
         </aside>
 
-        {/* Chat panel */}
+        {/* Chat */}
         <section className="z-10 flex min-h-0 flex-1 flex-col bg-black/10">
-          {/* Messages */}
           <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
             {messages.map((message) => (
               <div
@@ -498,14 +502,11 @@ export function ChatUI({
               </div>
             ))}
 
-            {/* Typing indicator */}
             {isTyping && (
               <div className="flex justify-start">
                 <div className="flex gap-2 rounded-2xl rounded-tl-sm border border-white/10 bg-[#2a1740] p-4">
                   <i className="h-2 w-2 animate-bounce rounded-full bg-amber-300" />
-
                   <i className="h-2 w-2 animate-bounce rounded-full bg-amber-300 [animation-delay:150ms]" />
-
                   <i className="h-2 w-2 animate-bounce rounded-full bg-amber-300 [animation-delay:300ms]" />
                 </div>
               </div>
@@ -517,7 +518,7 @@ export function ChatUI({
           {/* Input */}
           <div className="border-t border-white/10 bg-[#1b0e2b]/90 p-3 backdrop-blur-md sm:p-4">
             <div className="mx-auto flex max-w-4xl items-end gap-2">
-              {/* Microphone */}
+
               <button
                 type="button"
                 onClick={toggleListening}
@@ -540,7 +541,7 @@ export function ChatUI({
                 )}
               </button>
 
-              {/* Text input */}
+
               <div className="relative flex-1">
                 <textarea
                   value={input}
@@ -562,36 +563,31 @@ export function ChatUI({
                   dir="auto"
                 />
 
-                {/* Replay */}
                 <button
                   type="button"
-                  onClick={() =>
-                    void repeatLast()
-                  }
+                  onClick={() => void repeatLast()}
                   className="absolute bottom-3 left-3 text-amber-50/40 transition hover:text-amber-300"
-                  title="پخش دوباره‌ی آخرین پاسخ"
-                  aria-label="پخش دوباره‌ی آخرین پاسخ"
+                  title="پخش دوباره آخرین پاسخ"
+                  aria-label="پخش دوباره آخرین پاسخ"
                 >
                   <Volume2 className="h-5 w-5" />
                 </button>
               </div>
 
-              {/* Send */}
+
               <button
                 type="button"
-                onClick={() =>
-                  void handleSend()
-                }
-                disabled={
-                  !input.trim() || isTyping
-                }
+                onClick={() => void handleSend()}
+                disabled={!input.trim() || isTyping}
                 className="shrink-0 rounded-full bg-amber-500 p-3 text-[#21102e] transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="ارسال"
               >
                 <Send className="h-5 w-5" />
               </button>
+
             </div>
           </div>
+
         </section>
       </main>
     </div>

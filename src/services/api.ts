@@ -7,7 +7,7 @@ export class ApiService {
   static async getCharacters(): Promise<Character[]> { const response = await fetch('/api/characters'); if (!response.ok) throw await parseError(response); return await response.json() as Character[]; }
   static async getModels(): Promise<ProviderConfig[]> { const response = await fetch('/api/models'); if (!response.ok) throw await parseError(response); return await response.json() as ProviderConfig[]; }
   static async sendMessage(message: string, characterId: string, provider: Provider, model: string, history: Message[] = [], character?: Character): Promise<ChatResponse> {
-    const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, characterId, provider, model, history: history.slice(-12), character: character?.source === 'custom' ? character : undefined }) });
+    const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, characterId, provider, model, history: history.slice(-12), character: character?.settings.source === 'custom' ? character : undefined }) });
     if (!response.ok) throw await parseError(response);
     return await response.json() as ChatResponse;
   }

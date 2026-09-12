@@ -555,7 +555,7 @@ export function Avatar({
         height: dimension.height,
         maxWidth: '100%',
       }}
-      data-character-id={character.id}
+      data-character-id={character.identity.id}
       data-avatar-state={renderState}
       data-mouth-shape={renderMouthShape}
     >

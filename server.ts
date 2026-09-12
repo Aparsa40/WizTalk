@@ -116,11 +116,11 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
   let trustedSystemInstructions: string | undefined;
 
   if (character) {
-    trustedSystemInstructions = character.systemInstructions;
+    trustedSystemInstructions = character.identity.systemInstructions;
   } else if (
-    clientCharacter?.source === 'custom' &&
-    clientCharacter.id === characterId &&
-    typeof clientCharacter.systemInstructions === 'string'
+    clientCharacter?.settings?.source === 'custom' &&
+    clientCharacter.identity?.id === characterId &&
+    typeof clientCharacter.identity?.systemInstructions === 'string'
   ) {
     character = normalizeCharacter(clientCharacter, 'custom');
   }

@@ -48,7 +48,7 @@ export const AnimatedAvatarRenderer: React.FC<AnimatedAvatarRendererProps> = ({
     error: 'animate-shake-error',
   };
 
-  const characterInitial = character.name.trim().charAt(0) || '?';
+  const characterInitial = character.identity.name.trim().charAt(0) || '?';
   const sizeConfig = sizes[size];
 
   // Determine which image source to use based on state
@@ -71,7 +71,7 @@ export const AnimatedAvatarRenderer: React.FC<AnimatedAvatarRendererProps> = ({
         {/* Avatar image/content */}
         <img
           src={imageSource}
-          alt={`${character.displayName} - ${state}`}
+          alt={`${character.identity.displayName} - ${state}`}
           className={`h-full w-full object-cover object-center transition-all duration-700 ${
             state === 'speaking' ? 'scale-105' : 'scale-100'
           } ${state === 'error' ? 'opacity-75 saturate-0' : 'opacity-100 saturate-100'}`}
@@ -168,10 +168,10 @@ export const FallbackAvatarRenderer: React.FC<AnimatedAvatarRendererProps> = ({
     <div className={`relative overflow-hidden rounded-2xl border-2 border-amber-300/30 bg-gradient-to-br from-purple-900 to-slate-900 ${sizes[size]} flex items-center justify-center shadow-lg`}>
       <div className="text-center">
         <div className="text-6xl font-bold text-amber-300 opacity-50">
-          {character.name.charAt(0)}
+          {character.identity.name.charAt(0)}
         </div>
         <div className="text-xs text-amber-200/60 mt-2">
-          {character.displayName}
+          {character.identity.displayName}
         </div>
       </div>
     </div>
