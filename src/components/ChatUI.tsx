@@ -14,6 +14,11 @@ interface ChatUIProps {
   onOpenSettings: () => void;
 }
 
+/**
+ * Phase 5 keeps the Character/Avatar as the visual anchor of the conversation.
+ * Response generation and voice orchestration remain behind their existing
+ * service boundaries; this component only coordinates presentation and input.
+ */
 export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -29,12 +34,12 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
   useEffect(() => controller.current.subscribe(setAvatarState), []);
 
   useEffect(() => {
-    const c = new LipSyncCoordinator(character.identity.id);
-    lipSync.current = c;
-    c.setAnimationController(controller.current);
+    const coordinator = new LipSyncCoordinator(character.identity.id);
+    lipSync.current = coordinator;
+    coordinator.setAnimationController(controller.current);
 
     return () => {
-      c.reset();
+      coordinator.reset();
       lipSync.current = null;
     };
   }, [character.identity.id]);
@@ -45,9 +50,9 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
     if (saved.length) {
       setMessages(saved);
     } else {
-      const greeting = {
+      const greeting: Message = {
         id: crypto.randomUUID(),
-        sender: 'character' as const,
+        sender: 'character',
         text: character.identity.greeting,
         timestamp: Date.now(),
       };
@@ -64,10 +69,10 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
       }
       lipSync.current?.reset();
     };
-  }, [character.identity.id]);
+  }, [character.identity.id, character.identity.greeting]);
 
   useEffect(() => {
-    end.current?.scrollIntoView({ behavior: 'smooth' });
+    end.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, isTyping]);
 
   const speak = async (text: string) => {
@@ -76,26 +81,23 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
     const result = await voiceManager.speak(
       text,
       character,
-      (event: VoiceEvent) => lipSync.current?.processVoiceEvent(event)
+      (event: VoiceEvent) => lipSync.current?.processVoiceEvent(event),
     );
 
     if (!result.spoken && result.error) {
       console.warn('Voice unavailable; keeping text response visible.', result.error);
     }
 
-    timer.current = window.setTimeout(
-      () => controller.current.setState('idle'),
-      700
-    );
+    timer.current = window.setTimeout(() => controller.current.setState('idle'), 700);
   };
 
   const handleSend = async () => {
     const text = input.trim();
     if (!text || isTyping) return;
 
-    const user = {
+    const user: Message = {
       id: crypto.randomUUID(),
-      sender: 'user' as const,
+      sender: 'user',
       text,
       timestamp: Date.now(),
     };
@@ -109,9 +111,9 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
 
     try {
       const result = await ApiService.sendMessage(text, character.identity.id, next);
-      const reply = {
+      const reply: Message = {
         id: crypto.randomUUID(),
-        sender: 'character' as const,
+        sender: 'character',
         text: result.response,
         timestamp: Date.now(),
       };
@@ -146,7 +148,7 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
       () => {
         setIsListening(false);
         if (!isTyping) controller.current.setState('idle');
-      }
+      },
     );
 
     if (!recognition || !voiceManager.startListening()) {
@@ -160,92 +162,165 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
   };
 
   const repeatLast = async () => {
-    const last = [...messages].reverse().find((m) => m.sender === 'character');
+    const last = [...messages].reverse().find((message) => message.sender === 'character');
     if (last) await speak(last.text);
   };
 
+  const lastCharacterMessage = [...messages]
+    .reverse()
+    .find((message) => message.sender === 'character');
+
   return (
-    <div className="flex h-screen flex-col bg-[#12091f] text-amber-50">
-      <header className="flex items-center justify-between border-b border-white/10 bg-[#241437]/80 p-4">
-        <button onClick={onBack} className="rounded-full p-2 hover:bg-white/10">
+    <div dir="rtl" className="flex h-screen min-h-0 flex-col bg-[#12091f] text-amber-50">
+      <header className="z-20 flex shrink-0 items-center justify-between border-b border-white/10 bg-[#241437]/90 px-4 py-3 backdrop-blur">
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="بازگشت به انتخاب شخصیت"
+          className="rounded-full p-2 transition hover:bg-white/10"
+        >
           <ArrowRight />
         </button>
-        <div className="text-center">
-          <h2 className="font-serif text-xl font-bold text-amber-300">{character.identity.displayName}</h2>
-          <span className="text-xs text-amber-50/50">پاسخ‌گویی مستقل شخصیت</span>
+
+        <div className="min-w-0 text-center">
+          <h2 className="truncate font-serif text-xl font-bold text-amber-300">
+            {character.identity.displayName}
+          </h2>
+          <span className="text-xs text-amber-50/50">گفت‌وگوی اختصاصی شخصیت</span>
         </div>
-        <button onClick={onOpenSettings} className="rounded-full p-2 hover:bg-white/10">
+
+        <button
+          type="button"
+          onClick={onOpenSettings}
+          aria-label="تنظیمات شخصیت"
+          className="rounded-full p-2 transition hover:bg-white/10"
+        >
           <SettingsIcon />
         </button>
       </header>
 
-      <main className="relative flex flex-1 flex-col overflow-hidden md:flex-row">
-        <aside className="z-10 flex shrink-0 flex-col items-center justify-center border-b border-white/10 p-5 md:w-[36%]">
-          <Avatar
-            character={character}
-            state={avatarState}
-            size="xl"
-            animationController={controller.current.getAnimationController()}
-          />
-          <div className="mt-6 max-w-xs text-center">
-            <h3 className="text-lg font-bold text-amber-200">{character.identity.name}</h3>
-            <p className="mt-2 text-sm leading-6 text-amber-50/60">{character.identity.description}</p>
+      <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+        {/* The Avatar is deliberately the primary visual anchor for Phase 5. */}
+        <aside className="relative flex shrink-0 flex-col items-center justify-center border-b border-white/10 bg-[#170c26] px-4 py-5 lg:w-[44%] lg:border-b-0 lg:border-l">
+          <div className="w-full max-w-[30rem] text-center">
+            <div className="mb-4">
+              <p className="text-xs font-medium uppercase tracking-[0.22em] text-amber-200/50">Character</p>
+              <h3 className="mt-1 text-2xl font-bold text-amber-200">{character.identity.name}</h3>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-amber-50/60">
+                {character.identity.description}
+              </p>
+            </div>
+
+            <Avatar
+              character={character}
+              state={avatarState}
+              size="xl"
+              animationController={controller.current.getAnimationController()}
+            />
+
+            {lastCharacterMessage && (
+              <div
+                className="relative mx-auto mt-4 max-w-[30rem] rounded-3xl border border-amber-200/15 bg-[#2a1740]/95 px-5 py-4 text-right shadow-xl"
+                aria-live="polite"
+                aria-label="آخرین پاسخ شخصیت"
+              >
+                <span className="absolute -top-2 right-10 h-4 w-4 rotate-45 border-l border-t border-amber-200/15 bg-[#2a1740]" />
+                <p className="relative whitespace-pre-wrap text-sm leading-7 text-amber-50">
+                  {lastCharacterMessage.text}
+                </p>
+              </div>
+            )}
           </div>
         </aside>
 
-        <section className="z-10 flex min-h-0 flex-1 flex-col">
-          <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
-            {messages.map((m) => (
-              <div key={m.id} className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-[88%] rounded-2xl p-4 leading-7 shadow-lg ${
-                    m.sender === 'user'
-                      ? 'rounded-tr-sm bg-amber-600'
-                      : 'rounded-tl-sm border border-white/10 bg-[#2a1740]'
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap">{m.text}</p>
+        <section className="flex min-h-0 flex-1 flex-col bg-[#12091f]">
+          <div
+            className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 lg:px-8"
+            aria-label="تاریخچه گفت‌وگو"
+          >
+            <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-6 text-amber-50/60">
+                <strong className="text-amber-200">{character.identity.displayName}</strong>
+                <span className="mr-2">گفت‌وگو با این شخصیت به‌صورت مستقل نگهداری می‌شود.</span>
+              </div>
+
+              {messages.map((message) => {
+                const isUser = message.sender === 'user';
+
+                return (
+                  <div
+                    key={message.id}
+                    className={`flex ${isUser ? 'justify-start' : 'justify-end'}`}
+                  >
+                    <div
+                      className={`max-w-[92%] rounded-3xl px-4 py-3 leading-7 shadow-lg sm:max-w-[80%] ${
+                        isUser
+                          ? 'rounded-tr-md bg-amber-600 text-[#21102e]'
+                          : 'rounded-tl-md border border-white/10 bg-[#2a1740] text-amber-50'
+                      }`}
+                    >
+                      <div className="mb-1 text-[11px] font-semibold opacity-60">
+                        {isUser ? 'تو' : character.identity.displayName}
+                      </div>
+                      <p className="whitespace-pre-wrap">{message.text}</p>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {isTyping && (
+                <div className="flex justify-end">
+                  <div className="rounded-3xl rounded-tl-md border border-white/10 bg-[#2a1740] px-5 py-4 text-amber-100/70">
+                    <span aria-label="شخصیت در حال فکر کردن">•••</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )}
 
-            {isTyping && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl border border-white/10 bg-[#2a1740] p-4">...</div>
-              </div>
-            )}
-
-            <div ref={end} />
+              <div ref={end} />
+            </div>
           </div>
 
-          <div className="border-t border-white/10 bg-[#1b0e2b]/90 p-3">
-            <div className="mx-auto flex max-w-4xl items-end gap-2">
-              <button onClick={toggleListening} className="rounded-full bg-[#2a1740] p-3">
+          <div className="shrink-0 border-t border-white/10 bg-[#1b0e2b]/95 p-3 backdrop-blur">
+            <div className="mx-auto flex w-full max-w-3xl items-end gap-2">
+              <button
+                type="button"
+                onClick={toggleListening}
+                aria-label={isListening ? 'توقف شنیدن' : 'شروع گفتار'}
+                className={`rounded-full p-3 transition ${isListening ? 'bg-amber-500 text-[#21102e]' : 'bg-[#2a1740] hover:bg-[#382050]'}`}
+              >
                 {isListening ? <MicOff /> : <Mic />}
               </button>
 
-              <div className="relative flex-1">
+              <div className="relative min-w-0 flex-1">
                 <textarea
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
+                  onChange={(event) => setInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey) {
+                      event.preventDefault();
                       void handleSend();
                     }
                   }}
-                  placeholder="پیامت را اینجا بنویس..."
-                  className="min-h-12 max-h-32 w-full resize-none rounded-2xl border border-white/10 bg-[#2a1740] px-4 py-3 pl-12"
+                  placeholder={`با ${character.identity.displayName} صحبت کن...`}
+                  aria-label="پیام"
+                  className="min-h-12 max-h-32 w-full resize-none rounded-2xl border border-white/10 bg-[#2a1740] px-4 py-3 pl-12 outline-none transition placeholder:text-amber-50/35 focus:border-amber-300/40"
                 />
-                <button onClick={() => void repeatLast()} className="absolute bottom-3 left-3">
-                  <Volume2 />
+                <button
+                  type="button"
+                  onClick={() => void repeatLast()}
+                  aria-label="پخش دوباره آخرین پاسخ"
+                  className="absolute bottom-3 left-3 rounded-full p-1 text-amber-100/70 transition hover:bg-white/10 hover:text-amber-100"
+                >
+                  <Volume2 size={18} />
                 </button>
               </div>
 
               <button
+                type="button"
                 onClick={() => void handleSend()}
                 disabled={!input.trim() || isTyping}
-                className="rounded-full bg-amber-500 p-3 text-[#21102e] disabled:opacity-40"
+                aria-label="ارسال پیام"
+                className="rounded-full bg-amber-500 p-3 text-[#21102e] transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Send />
               </button>
