@@ -1,317 +1,186 @@
 # WizTalk
 
-WizTalk is a Persian-first, modular interactive AI character platform where people chat with configurable AI characters featuring independent avatars, voice configurations, and advanced animation systems.
+WizTalk is a Persian-first, modular interactive AI character platform. Each Character is designed as an independent hybrid chatbot with its own identity, personality, avatar, voice configuration, AI route, knowledge, settings, and memory boundary.
 
-**Current Version:** v1.1.0 (Released: 2026-09-06)
-**Previous Version:** v1.0.0 (Baseline)
-**Status:** Feature Release - Modular Avatar, Voice & Lip-Sync Architecture
+**Current Version:** v2.0.0 — Architecture Baseline
+**Release Date:** 2026-09-12
+**Status:** Stable architectural baseline after completion of Phase 1–8
 
-## What's New in v1.1.0
+## v2.0.0 — What this release represents
 
-### ✨ Major Features
+WizTalk v2.0.0 is the first complete post-foundation baseline. It consolidates the eight initial architecture phases into one reviewed and independently testable platform foundation:
 
-#### 🎭 Modular Avatar System
-- **Independent 2D Animated Avatars**: Each character has its own avatar with state-specific assets
-- **State-Based Animations**: Idle, listening, thinking, speaking, error states with smooth transitions
-- **Pluggable Renderers**: Architecture ready for SVG, Canvas, Live2D, and 3D rendering
-- **Visual Feedback**: State indicators (sound waves, pulse rings, thinking bubbles, error states)
+1. Avatar Architecture
+2. Character Data Architecture
+3. Response Manager
+4. Voice Manager
+5. Character-centric Chat UI
+6. Character Settings
+7. Responsive Pass
+8. Integration & Acceptance
 
-#### 🎤 Character-Specific Voice Configuration
-- **Per-Character Voice Settings**: Independent language, speech rate, pitch, volume for each character
-  - **Harry**: Normal pace, pitch +10% (brave tone)
-  - **Hermione**: Faster pace, higher pitch (intelligent tone)
-  - **Ron**: Slower pace, lower pitch (casual tone)
-- **Persian Language Support**: Full fa-IR (Persian) speech recognition and synthesis
-- **Voice Events**: Emission of voice events for lip-sync coordination
-- **Future Provider Support**: Architecture ready for external TTS/STT services
+This release is a **safe development checkpoint**, not the end of product development. Future work starts from this baseline through isolated feature branches and Pull Requests.
 
-#### 🗣️ Lip-Sync Architecture
-- **Voice Event Coordination**: Tracks voice playback timing and amplitude
-- **Mouth Shape Prediction**: Amplitude-based mouth animation (closed, open-small, open-medium, open-large, smile, pursed)
-- **Phoneme Support**: Foundation for future phoneme detection
-- **SVG Generation**: Mouth shape rendering for 2D/3D avatars
-- **Ready for Live2D/3D**: Clean interfaces for future avatar technology upgrades
+## Core Architecture
 
-#### 🏗️ Character Architecture
-- **Complete Decoupling**: Each character has independent configuration for avatar, voice, AI, and memory
-- **Easy Extensibility**: Adding new characters requires only adding JSON data, no code changes
-- **Character-Specific Memory**: Conversation history stored per character
-- **AI Configuration Per Character**: Different characters can use different AI models/providers
+```text
+User
+  ↓
+ChatUI
+  ↓
+API Service
+  ↓
+Express Server
+  ↓
+Character Resolution
+  ↓
+ResponseManager
+  ↓
+Configured Provider
+  ↓
+Fallback Providers
+  ↓
+Local Knowledge / Controlled Final Fallback
+  ↓
+Text Response
 
-### 🎬 Technical Improvements
-
-#### Animation System
-- `AvatarAnimationController`: Advanced state management with event emitters
-- `AnimatedAvatarRenderer`: CSS-based 2D animations with fallback support
-- `avatar-animations.css`: 7+ custom animations for different states
-- Smooth state transitions with configurable timing
-
-#### Voice System
-- `VoiceService` (Advanced): Character-aware speech recognition and synthesis
-- `VoiceEventEmitter`: Coordination between voice, avatar, and lip-sync
-- Voice state tracking and pause/resume support
-- Persian voice detection and filtering
-
-#### Lip-Sync System
-- `LipSyncCoordinator`: Voice-to-animation coordination framework
-- Amplitude-based mouth shape prediction
-- Ready for phoneme-level analysis
-- Support for future external voice providers
-
-## Implemented (v1.0.0 + v1.1.0)
-
-### Core Platform
-- ✅ React 19, Vite, TypeScript, Express, Tailwind CSS 4
-- ✅ RTL Persian interface with responsive desktop, tablet, mobile layouts
-- ✅ Harry, Hermione, and Ron characters with independent configurations
-- ✅ Local FAQ mode, Gemini, OpenAI, and OpenRouter provider routing
-- ✅ Server-only API keys; no provider secrets exposed to browser/localStorage
-- ✅ Browser-local custom character management (create, edit, duplicate, delete)
-- ✅ Per-character conversation memory with localStorage
-- ✅ Health and model configuration endpoints
-
-### New in v1.1.0
-- ✅ Modular 2D animated avatar system with state-specific rendering
-- ✅ Character-independent voice configuration system
-- ✅ Lip-sync coordination framework ready for future animation
-- ✅ Voice event emission and coordination
-- ✅ Advanced avatar animation controller with history tracking
-- ✅ Character-specific speech rate, pitch, volume control
-- ✅ Persian speech recognition with character-specific language settings
-- ✅ Mouth shape prediction from voice amplitude
-- ✅ Clean renderer/voice provider abstractions for future implementations
-
-## Architecture
-
-### Services Layer
-```
-src/services/
-├── avatar-controller.ts      # Advanced animation state management
-├── avatar-renderer.tsx       # 2D animated avatar rendering
-├── voice-advanced.ts         # Character-aware voice (STT/TTS)
-├── lipsync-coordinator.ts    # Voice-to-mouth animation coordination
-├── character.ts              # Character management (create, edit, delete)
-├── memory.ts                 # Conversation memory per character
-├── api.ts                    # API communication
-└── ai.ts                     # AI provider routing
+Voice path:
+Text Response → VoiceManager → Configured Voice → Browser TTS fallback
+                           ↓
+                     Avatar/Lip-Sync events
 ```
 
-### Components Layer
-```
-src/components/
-├── Avatar.tsx                # Avatar display component
-├── ChatUI.tsx                # Chat interface (upgraded with new systems)
-├── CharacterSelector.tsx     # Character selection
-├── CharacterManager.tsx      # Custom character management
-├── CharacterForm.tsx         # Character creation/editing
-└── Settings.tsx              # Application settings
-```
+### Character isolation
 
-### Server Layer
-```
-server/services/
-├── characters.ts             # Character loading and normalization
-├── ai.ts                     # AI provider implementations
-└── faq.ts                    # FAQ matching engine
-```
+Every Character has independent configuration for:
+- Identity and personality
+- Avatar
+- Text model/provider route
+- Voice model/settings
+- Knowledge
+- User-facing settings
+- Conversation/memory context
 
-### Data Layer
-```
-data/
-├── characters/               # Built-in character definitions
-│   ├── harry.json           # Harry (1.1.0: updated with avatar+voice config)
-│   ├── hermione.json        # Hermione (1.1.0: updated)
-│   └── ron.json             # Ron (1.1.0: updated)
-└── faq/
-    └── faqs.json            # FAQ dataset for local provider
-```
+Legacy character data is normalized into the current schema without making provider internals user-editable.
 
-## Setup
+### Response Manager
 
-**Requirements**: Node.js 20 or newer
+`ResponseManager` is the central response orchestration layer. It tries the Character's configured route first, then the remaining supported providers, local knowledge, and finally a controlled Persian fallback. Provider failures and raw provider errors remain server-side.
 
-1. **Install dependencies**
-   ```bash
-   npm install
-   ```
+### Voice Manager
 
-2. **Configure environment**
-   ```bash
-   cp .env.example .env
-   ```
-   Add API keys only for cloud providers you use (optional):
-   - `GEMINI_API_KEY` - For Google Gemini
-   - `OPENAI_API_KEY` - For OpenAI
-   - `OPENROUTER_API_KEY` - For OpenRouter
+`VoiceManager` owns voice orchestration. The configured voice route is attempted first, followed by available fallbacks and browser speech synthesis. A voice failure never removes the text response.
 
-3. **Start development**
-   ```bash
-   npm run dev
-   ```
-   Open http://localhost:3000
+### Avatar architecture
+
+The Avatar system is renderer-neutral and separates Avatar state/control from rendering. Current architecture supports states such as idle, listening, thinking, speaking, and error and is designed for future SVG, Live2D, 3D, and video renderers.
+
+## Current AI Providers and Models
+
+The repository currently contains adapters for:
+
+- **Local:** `faq-keyword-v1`
+- **Google Gemini:** `gemini-2.5-flash`, `gemini-2.5-pro`
+- **OpenAI:** `gpt-4o-mini`, `gpt-4o`
+- **OpenRouter:** `minimax/minimax-m2.7:free`
+
+Cloud credentials are server-side environment variables. Built-in Characters currently use the local FAQ route by default; cloud provider support is implemented but activation/default selection remains a post-v2 development concern.
+
+## Built-in Characters
+
+- Harry
+- Hermione
+- Ron
+
+Character definitions live under `data/characters/` and follow the independent Character schema.
+
+Custom Characters are currently browser-local and stored through the Character service/localStorage abstraction.
+
+## Voice and Avatar
+
+Current voice support includes browser STT/TTS and per-Character language, rate, pitch, and volume settings. The lip-sync layer provides event coordination and amplitude-based mouth-state support. Production phoneme/viseme lip-sync and real Live2D/3D renderers remain future development.
+
+## Persistence
+
+The current baseline uses browser localStorage for custom Characters, user-facing Character settings, and conversation memory. Database persistence, accounts, and cross-device synchronization are intentionally outside v2.0.0.
+
+## Security Baseline
+
+- Provider API keys remain server-side.
+- Client requests do not expose provider credentials.
+- Character/provider/model validation occurs server-side.
+- Chat and static endpoints use rate limiting.
+- `qs` is pinned/overridden to `6.16.0`.
+- Raw provider errors and stack traces are not returned to the UI.
+
+See `SECURITY.md` for the complete policy.
 
 ## Development
 
-### Build
+Requirements: Node.js 20+
+
 ```bash
+npm install
+npm run dev
+npm run lint
+npm test
 npm run build
 ```
 
-### Production
+Production:
+
 ```bash
 npm run build
 npm start
 ```
 
-### Linting
-```bash
-npm run lint
-```
+## Versioning
 
-The server reads `PORT` from environment (default 3000) and binds to 0.0.0.0.
+WizTalk follows Semantic Versioning:
 
-## Key Differences: v1.0 → v1.1
+- **MAJOR** — breaking architecture/API changes
+- **MINOR** — backward-compatible feature releases
+- **PATCH** — fixes and security/maintenance releases
 
-| Feature | v1.0 | v1.1 |
-|---------|------|------|
-| Avatar System | Static portrait only | Modular 2D animated with state-based rendering |
-| Avatar Configuration | One global avatar | Independent avatar per character |
-| Voice System | Basic browser TTS/STT | Advanced per-character voice settings |
-| Voice Configuration | Global settings | Independent language, rate, pitch, volume per character |
-| Mouth Animation | None | Amplitude-based mouth shape prediction |
-| Lip-Sync Architecture | None | Voice event coordination framework ready for phoneme detection |
-| Renderer Extensibility | Limited | Clean abstractions for SVG, Canvas, Live2D, 3D |
-| Voice Provider Extensibility | None | Architecture ready for external TTS/STT services |
-| Character Memory | Per character | Per character (improved per character state tracking) |
+`v2.0.0` is the stable baseline for the next generation of development.
 
-## Providers and Models
+## Post-v2 Development Roadmap
 
-Local FAQ mode requires no API key. Cloud providers need server-side credentials:
+Future development is intentionally divided into isolated phases:
 
-### Local
-- **Model**: faq-keyword-v1
-- **Key Required**: No
-- **Response**: Keyword-matched answers from `data/faq/faqs.json`
+1. Real AI Model Activation
+2. Database + Persistence
+3. Authentication + User Accounts
+4. Memory + Conversation History
+5. Real Avatar / Live2D / 3D
+6. Advanced Voice + Lip-Sync
+7. Moderation & Safety
+8. Agent / Tools Architecture
+9. Production / Observability / Deployment
+10. UX / Product Polish
 
-### Google Gemini
-- **Models**: gemini-2.5-flash, gemini-2.5-pro
-- **Key Required**: Yes (`GEMINI_API_KEY`)
-
-### OpenAI
-- **Models**: gpt-4o-mini, gpt-4o
-- **Key Required**: Yes (`OPENAI_API_KEY`)
-
-### OpenRouter
-- **Models**: minimax/minimax-m2.7:free
-- **Key Required**: Yes (`OPENROUTER_API_KEY`)
-
-## Character System
-
-Built-in characters (Harry, Hermione, Ron) are static JSON loaded from `data/characters/`.
-
-Each character now has:
-- **Independent Avatar**: Type, source, state-specific assets
-- **Independent Voice**: Language, speech rate, pitch, volume
-- **Independent AI**: Provider and model selection
-- **Unique Personality**: Description, behavior, tone, communication style
-- **Separate Memory**: Per-character conversation history
-
-Custom characters can be created in the browser and are stored in localStorage. They follow the same independent configuration pattern.
-
-**v1.1.0 Improvement**: Characters are now truly modular. Each character configuration is completely independent; changing one character's settings doesn't affect others.
-
-## Avatar and Voice Rendering
-
-### Avatar
-- **2D Animated Renderer**: CSS-based animations with Tailwind utilities
-- **State Tracking**: Full animation history available
-- **Event Coordination**: Responds to voice events for animation synchronization
-- **Fallback Support**: Character initial displayed if image fails to load
-
-The architecture is ready for multiple renderer implementations:
-- SVG-based 2D
-- Canvas-based 2D/3D
-- Live2D support
-- Full 3D rendering
-
-### Voice
-- **Browser Speech Recognition**: Persian (fa-IR) support
-- **Browser Speech Synthesis**: Character-specific voice configuration
-- **Voice Events**: Timing information for mouth/facial animation
-- **Event History**: Voice event buffer for debugging and replay
-
-The architecture supports future external voice providers without changes to core systems.
-
-## Memory
-
-Per-character conversation memory is stored in localStorage with this structure:
-- User and character messages indexed by character ID
-- User profile stored separately
-- Application state (selected character, provider, model) stored separately
-
-The abstraction layer (`MemoryStore` interface) is ready for database backend without changing application code.
-
-## Lip-Sync (v1.1.0 New)
-
-Lip-sync coordination framework prepares the application for facial animation without requiring complex phoneme analysis today:
-
-- **Mouth Shapes**: Closed, open-small, open-medium, open-large, smile, pursed
-- **Amplitude Prediction**: Current amplitude-based shape selection
-- **Phoneme Placeholder**: Support for future phoneme detection
-- **SVG Generator**: Mouth shape rendering ready for 2D/3D avatars
-- **Event Buffer**: Voice event history for timing analysis
-
-Future enhancements:
-- Real-time phoneme detection from audio
-- Viseme (visual phoneme) mapping
-- Live2D parameter binding
-- 3D face animation
-
-## Limitations
-
-- Browser voice support varies by browser and OS installed system voices
-- Cloud AI providers require server environment variables
-- v1.1.0 lip-sync uses amplitude-based prediction (no phoneme analysis)
-- Avatar rendering currently uses CSS animations (Live2D/3D future)
-
-## Roadmap
-
-### Phase 2 (Coming)
-- [ ] Live2D avatar integration
-- [ ] Advanced phoneme detection
-- [ ] External voice providers (Google Cloud, Azure, ElevenLabs)
-- [ ] Character animation presets and customization
-- [ ] Multi-language UI (not just Persian content)
-
-### Phase 3 (Future)
-- [ ] 3D character rendering
-- [ ] Voice cloning and customization
-- [ ] Emotion-based animation states
-- [ ] Multi-character group conversations
-- [ ] Cloud character and account persistence
+Each phase must use a new dedicated branch, contain only that phase's scope, pass project checks, and be submitted through a Pull Request. Merging requires explicit project-owner approval.
 
 ## Documentation
 
-- `docs/architecture.md` - System architecture overview
-- `docs/modular-architecture.md` - New v1.1 modular systems (Avatar, Voice, Lip-Sync)
-- `docs/character-system.md` - Character data and configuration
-- `docs/voice-system.md` - Voice and speech systems
-- `docs/memory-system.md` - Memory and conversation storage
-- `docs/ai-providers.md` - AI provider configuration
-- `docs/deployment.md` - Deployment guide
-- `docs/development.md` - Development setup
-
-## Support
-
-See `CONTRIBUTING.md` for contributing guidelines.
-See `SECURITY.md` for security policies.
-See `CHANGELOG.md` for version history.
+- `docs/architecture.md` — architecture overview
+- `docs/modular-architecture.md` — Avatar, Voice, Lip-Sync, and Character modularity
+- `docs/character-system.md` — Character schema and lifecycle
+- `docs/voice-system.md` — voice architecture
+- `docs/memory-system.md` — current memory model
+- `docs/ai-providers.md` — provider configuration
+- `docs/roadmap.md` — current and future roadmap
+- `docs/deployment.md` — deployment
+- `docs/development.md` — development workflow
+- `CONTRIBUTING.md` — contribution workflow
+- `SECURITY.md` — security policy
+- `CHANGELOG.md` — release history
+- `RELEASE.md` — release baselines
 
 ## License
 
-MIT License - See `LICENSE` for details
+MIT License — see `LICENSE`.
 
 ---
 
-**Built with ❤️ in Persian**  
-WizTalk v1.1.0 - Modular Interactive AI Character Platform
+**WizTalk v2.0.0 — Stable Architecture Baseline**
