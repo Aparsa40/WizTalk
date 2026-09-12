@@ -91,7 +91,7 @@ export class VoiceService {
 
     const recognition = new Constructor();
 
-    recognition.lang = character.voice.language || 'fa-IR';
+    recognition.lang = character.voiceModels.default.language || 'fa-IR';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
@@ -230,7 +230,7 @@ export class VoiceService {
         cleanText
       );
 
-      const voiceConfig = character.voice;
+      const voiceConfig = character.voiceModels.default;
 
       utterance.lang = voiceConfig.language || 'fa-IR';
 
@@ -261,7 +261,7 @@ export class VoiceService {
       }
 
       this.currentUtterance = utterance;
-      this.currentCharacterId = character.id;
+      this.currentCharacterId = character.identity.id;
 
       let settled = false;
 
@@ -299,7 +299,7 @@ export class VoiceService {
       ) => {
         const event: VoiceEvent = {
           type,
-          characterId: character.id,
+          characterId: character.identity.id,
           timestamp: Date.now(),
           source: 'browser',
           measured: false,
@@ -680,7 +680,7 @@ export class VoiceService {
   static getVoiceConfig(
     character: Character
   ): VoiceConfig {
-    return character.voice;
+    return character.voiceModels.default;
   }
 
   static updateVoiceConfig(
@@ -690,10 +690,7 @@ export class VoiceService {
     return {
       ...character,
 
-      voice: {
-        ...character.voice,
-        ...config,
-      },
+      voiceModels: { default: { ...character.voiceModels.default, ...config } },
     };
   }
 
