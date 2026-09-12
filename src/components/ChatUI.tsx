@@ -82,7 +82,7 @@ export function ChatUI({
    */
   useEffect(() => {
     const coordinator =
-      new LipSyncCoordinator(character.id);
+       new LipSyncCoordinator(character.identity.id);
 
     lipSyncCoordinator.current = coordinator;
     coordinator.setAnimationController(
@@ -98,7 +98,7 @@ export function ChatUI({
         lipSyncCoordinator.current = null;
       }
     };
-  }, [character.id]);
+  }, [character.identity.id]);
 
   /**
    * Load conversation history and initialize
@@ -106,20 +106,20 @@ export function ChatUI({
    */
   useEffect(() => {
     const saved =
-      MemoryService.getMessages(character.id);
+      MemoryService.getMessages(character.identity.id);
 
     if (saved.length > 0) {
       setMessages(saved);
     } else {
       const greeting: Message = {
-        id: `greeting-${character.id}`,
+        MemoryService.getMessages(character.identity.id);
         sender: 'character',
         text: character.greeting,
         timestamp: Date.now(),
       };
 
       MemoryService.saveMessage(
-        character.id,
+        character.identity.id,
         greeting,
       );
 
@@ -138,7 +138,8 @@ export function ChatUI({
 
       lipSyncCoordinator.current?.reset();
     };
-  }, [character.id]);
+  }, [character.identity.id]);
+
 
   /**
    * Keep the latest message visible.
@@ -190,7 +191,7 @@ export function ChatUI({
     setState('speaking');
 
     if (
-      appState.voiceEnabled &&
+      character.voiceModels.default.enabled
       character.voice.enabled
     ) {
       try {
@@ -242,9 +243,8 @@ export function ChatUI({
     ];
 
     setMessages(nextMessages);
-
     MemoryService.saveMessage(
-      character.id,
+      character.identity.id,
       userMsg,
     );
 
@@ -256,7 +256,7 @@ export function ChatUI({
       const result =
         await ApiService.sendMessage(
           userMsg.text,
-          character.id,
+          character.identity.id,
           appState.provider,
           appState.model,
           nextMessages,
@@ -281,7 +281,7 @@ export function ChatUI({
       ]);
 
       MemoryService.saveMessage(
-        character.id,
+        character.identity.id,
         characterMsg,
       );
 
@@ -456,15 +456,15 @@ export function ChatUI({
 
           <div className="mt-10 max-w-xs text-center">
             <h3 className="text-lg font-bold text-amber-200">
-              {character.name}
+              {character.identity.name}
             </h3>
 
             <p className="mt-2 text-sm leading-6 text-amber-50/60">
-              {character.description}
+              {character.identity.description}
             </p>
 
             <p className="mt-4 text-xs text-amber-300/50">
-              {character.personality.tone}
+              {character.identity.personality.tone}
             </p>
           </div>
         </aside>
