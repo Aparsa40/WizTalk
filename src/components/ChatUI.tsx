@@ -5,7 +5,7 @@ import { ApiService } from '../services/api';
 import { Avatar } from './Avatar';
 import { AvatarAnimationController } from '../services/avatar-controller';
 import { MemoryService } from '../services/memory';
-import { VoiceService } from '../services/voice-advanced';
+import { voiceManager } from '../services/voice-manager';
 import { LipSyncCoordinator } from '../services/lipsync-coordinator';
 
 interface ChatUIProps {
@@ -24,8 +24,6 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
   const controller = useRef<AvatarAnimationController>(new AvatarAnimationController());
   const lipSync = useRef<LipSyncCoordinator | null>(null);
   const end = useRef<HTMLDivElement>(null);
-  // React's useRef type definitions require an initial value. Keeping null in
-  // the type also makes the timer lifecycle explicit during mount/unmount.
   const timer = useRef<number | null>(null);
 
   useEffect(() => controller.current.subscribe(setAvatarState), []);
@@ -58,8 +56,8 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
     }
 
     return () => {
-      VoiceService.abortListening();
-      VoiceService.stopSpeaking();
+      voiceManager.abortListening();
+      voiceManager.stop();
       if (timer.current !== null) {
         window.clearTimeout(timer.current);
         timer.current = null;
@@ -75,14 +73,14 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
   const speak = async (text: string) => {
     controller.current.setState('speaking');
 
-    if (character.voiceModels.default.enabled) {
-      try {
-        await VoiceService.speak(text, character, (e: VoiceEvent) =>
-          lipSync.current?.processVoiceEvent(e)
-        );
-      } catch (error) {
-        console.warn('TTS unavailable', error);
-      }
+    const result = await voiceManager.speak(
+      text,
+      character,
+      (event: VoiceEvent) => lipSync.current?.processVoiceEvent(event)
+    );
+
+    if (!result.spoken && result.error) {
+      console.warn('Voice unavailable; keeping text response visible.', result.error);
     }
 
     timer.current = window.setTimeout(
@@ -131,13 +129,13 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
 
   const toggleListening = () => {
     if (isListening) {
-      VoiceService.stopListening();
+      voiceManager.stopListening();
       setIsListening(false);
       controller.current.setState('idle');
       return;
     }
 
-    const recognition = VoiceService.initSpeechToText(
+    const recognition = voiceManager.initSpeechToText(
       character,
       (text) => setInput((value) => (value ? `${value} ${text}` : text)),
       (message) => {
@@ -151,7 +149,7 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
       }
     );
 
-    if (!recognition || !VoiceService.startListening()) {
+    if (!recognition || !voiceManager.startListening()) {
       setIsListening(false);
       controller.current.setState('error');
       return;
