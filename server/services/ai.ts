@@ -60,6 +60,11 @@ function buildPrompt(
   history: HistoryItem[],
   message: string
 ): string {
+  const rawKnowledge = character.knowledge.raw.content.trim();
+  const knowledgeContext = rawKnowledge
+    ? rawKnowledge.slice(0, 8000)
+    : 'No additional raw knowledge is configured.';
+
   return [
     'Character context:',
     `Name: ${character.identity.name}`,
@@ -69,6 +74,9 @@ function buildPrompt(
     `Tone: ${character.identity.personality.tone}`,
     `Communication: ${character.identity.personality.communicationStyle}`,
     `Character instructions: ${character.identity.systemInstructions}`,
+    '',
+    'Character knowledge:',
+    knowledgeContext,
     '',
     ...history
       .slice(-12)
