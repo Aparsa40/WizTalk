@@ -95,8 +95,6 @@ Voice
 
 v2.0.0 is an architecture baseline, not a finished product release.
 
-- Built-in Characters currently use the local FAQ route by default.
-- Cloud AI adapters exist but real production model activation/default strategy is the next development phase.
 - Persistence remains browser-local.
 - Authentication and accounts are not implemented.
 - Cross-device synchronization is not implemented.
@@ -107,6 +105,34 @@ v2.0.0 is an architecture baseline, not a finished product release.
 ## Release Role
 
 `v2.0.0` should be treated as the project's **safe architectural rollback point**. New post-v2 work must branch from the latest `main` descended from this baseline and must remain isolated by phase.
+
+---
+
+# Post-v2 Changes Currently in Unreleased Development
+
+The following changes are intentionally recorded separately from the v2.0.0 historical release. They are implemented on post-v2 feature branches and are not a new release until a version is explicitly cut.
+
+## Live Voice Model Stack — Harry
+
+- OpenRouter `minimax/minimax-m2.7:free` is the primary text/Voice Chat response model.
+- Hugging Face `Qwen/Qwen3.8-27B:fastest` is the secondary response model.
+- OpenRouter `fish-audio/s2.1-pro-free:free` is the current development TTS engine.
+- Browser `SpeechRecognition` (`fa-IR`) remains the current microphone/STT layer.
+- Browser Speech Synthesis remains the final TTS fallback.
+- The current pipeline is **text-response + TTS**, not end-to-end speech-to-speech.
+- No paid or unavailable S2S model is represented as a free active provider.
+
+## Independent Avatar / Background Selection
+
+- Characters now expose independent `avatar.assets` and `backgrounds.assets` collections.
+- Character Settings provides separate Avatar and Background selection.
+- Selected Avatar and Background are persisted independently per Character.
+- Legacy coupled avatar/background preset data remains compatible through normalization.
+- The renderer-neutral architecture remains ready for future real VRM/Live2D/3D Avatar assets.
+
+## Unreleased Status
+
+These changes are intentionally kept under `Unreleased` until the project owner decides on the next release version and release tag.
 
 ---
 
@@ -178,7 +204,7 @@ WizTalk v1.0.0 established the first stable foundation for an extensible Persian
 
 Future development is organized into isolated phases:
 
-1. Real AI Model Activation
+1. Expand real AI Model Activation to all built-in Characters
 2. Database + Persistence
 3. Authentication + User Accounts
 4. Memory + Conversation History
