@@ -8,3 +8,10 @@ body { min-width: 320px; background: #12091f; }
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
+
+@keyframes wiztalk-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.08); } }
+@keyframes wiztalk-speaking { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(1px) scaleY(0.72); } }
+.avatar-blink { transform-box: fill-box; transform-origin: center; animation: wiztalk-blink 4.6s infinite; }
+[data-avatar-state='speaking'] .avatar-mouth { transform-box: fill-box; transform-origin: center; animation: wiztalk-speaking .34s infinite; }
+[data-avatar-state='speaking'] .avatar-face { filter: brightness(1.03); }
+@media (prefers-reduced-motion: reduce) { .avatar-blink, [data-avatar-state='speaking'] .avatar-mouth { animation: none; } }
