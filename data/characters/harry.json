@@ -29,7 +29,7 @@
   "voiceModels": {
     "primary":{"provider":"openrouter","model":"minimax/minimax-m2.7:free","enabled":true},
     "secondary":{"provider":"huggingface","model":"Qwen/Qwen3.8-27B:fastest","enabled":true},
-    "output":{"provider":"browser","language":"fa-IR","enabled":true,"speechRate":1,"pitch":1.1,"volume":1,"voiceName":null}
+    "output":{"provider":"external","language":"fa-IR","enabled":true,"speechRate":1,"pitch":1.1,"volume":1,"voiceName":null,"voiceId":null}
   },
   "settings": {"enabled":true,"source":"builtin"}
 }
