@@ -8,6 +8,7 @@ test('normalizes legacy data into isolated character configuration', () => {
   assert.equal(harry.identity.systemInstructions,'stay in character');
   assert.equal(hermione.textModels.primary.provider,'openrouter');
   assert.equal(hermione.voiceModels.output.provider,'browser');
+  assert.equal(harry.backgrounds.assets.length, 0);
   hermione.knowledge.raw.content='changed';
   assert.equal(harry.knowledge.raw.content,'');
   assert.notEqual(harry.avatar.source,hermione.avatar.source);
@@ -20,7 +21,21 @@ test('character identity data stays independent after normalization', () => {
   a.identity.personality.description='changed'; a.avatar.source='changed.png'; assert.equal(b.identity.personality.description,'two'); assert.equal(b.avatar.source,'b.png');
 });
 
-test('avatar presets preserve character-local avatar/background pairs', () => {
-  const harry = normalizeCharacter({ id:'harry', name:'Harry', displayName:'هری', avatar:{ type:'animated-2d', source:'/avatars/harry-classic.svg', backgroundSource:'/avatars/harry-bedroom.svg', presetId:'classic-bedroom', presets:[ {id:'classic-bedroom',name:'Classic',avatarSource:'/avatars/harry-classic.svg',backgroundSource:'/avatars/harry-bedroom.svg'}, {id:'illustrated-hall',name:'Illustrated',avatarSource:'/avatars/harry-illustrated.svg',backgroundSource:'/avatars/harry-hall.svg'} ] } });
-  assert.equal(harry.avatar.presets?.length,2); assert.equal(harry.avatar.presets?.[0].avatarSource,'/avatars/harry-classic.svg'); assert.equal(harry.avatar.presets?.[0].backgroundSource,'/avatars/harry-bedroom.svg'); assert.equal(harry.avatar.presets?.[1].backgroundSource,'/avatars/harry-hall.svg');
+test('avatar and background assets are independent selectable collections', () => {
+  const harry = normalizeCharacter({
+    id:'harry', name:'Harry', displayName:'هری',
+    avatar:{ type:'animated-2d', selectedId:'illustrated', source:'/avatars/harry-classic.svg', assets:[
+      {id:'classic',name:'Classic',type:'animated-2d',source:'/avatars/harry-classic.svg'},
+      {id:'illustrated',name:'Illustrated',type:'animated-2d',source:'/avatars/harry-illustrated.svg'},
+    ]},
+    backgrounds:{ selectedId:'hall', assets:[
+      {id:'bedroom',name:'Bedroom',source:'/avatars/harry-bedroom.svg'},
+      {id:'hall',name:'Great Hall',source:'/avatars/harry-hall.svg'},
+    ]},
+  });
+  assert.equal(harry.avatar.selectedId, 'illustrated');
+  assert.equal(harry.avatar.source, '/avatars/harry-illustrated.svg');
+  assert.equal(harry.backgrounds.selectedId, 'hall');
+  assert.equal(harry.backgrounds.assets[1].source, '/avatars/harry-hall.svg');
+  assert.notEqual(harry.avatar.selectedId, harry.backgrounds.selectedId);
 });
