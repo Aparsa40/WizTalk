@@ -11,7 +11,8 @@ export type AvatarType =
   | 'svg'
   | 'video'
   | 'live2d'
-  | 'canvas-3d';
+  | 'canvas-3d'
+  | 'vrm';
 
 export type VoiceProvider = 'browser' | 'external';
 
@@ -22,11 +23,32 @@ export interface PersonalityConfig {
   communicationStyle: string;
 }
 
+/** Legacy preset kept for backwards-compatible character files. New UI does not couple these assets. */
 export interface AvatarPreset {
   id: string;
   name: string;
   avatarSource: string;
   backgroundSource: string;
+}
+
+export interface AvatarAsset {
+  id: string;
+  name: string;
+  type: AvatarType;
+  source: string;
+  thumbnail?: string;
+  fallbackSource?: string;
+  animationSpeed?: 'slow' | 'normal' | 'fast';
+  customAnimationData?: Record<string, unknown>;
+}
+
+export interface BackgroundAsset {
+  id: string;
+  name: string;
+  source: string;
+  thumbnail?: string;
+  position?: string;
+  size?: 'cover' | 'contain' | 'auto';
 }
 
 export interface AvatarConfig {
@@ -38,11 +60,19 @@ export interface AvatarConfig {
   thinkingSource?: string;
   speakingSource?: string;
   errorSource?: string;
+  /** Legacy field; new runtime rendering uses Character.backgrounds. */
   backgroundSource?: string;
   presetId?: string;
   presets?: AvatarPreset[];
+  assets?: AvatarAsset[];
+  selectedId?: string;
   animationSpeed?: 'slow' | 'normal' | 'fast';
   customAnimationData?: Record<string, unknown>;
+}
+
+export interface BackgroundConfig {
+  selectedId: string;
+  assets: BackgroundAsset[];
 }
 
 export interface ChatModelConfig {
@@ -54,10 +84,7 @@ export interface ChatModelConfig {
 export interface TextModelsConfig {
   primary: ChatModelConfig;
   secondary: ChatModelConfig;
-  /**
-   * @deprecated Compatibility alias for legacy code during the model-pair migration.
-   * New runtime code should use primary/secondary.
-   */
+  /** @deprecated Compatibility alias for legacy code during the model-pair migration. */
   [key: string]: any;
 }
 
@@ -79,10 +106,7 @@ export interface VoiceModelsConfig {
   primary: ChatModelConfig;
   secondary: ChatModelConfig;
   output: VoiceConfig;
-  /**
-   * @deprecated Compatibility alias for legacy browser TTS/character settings code.
-   * New runtime code should use output for TTS and primary/secondary for Voice Chat.
-   */
+  /** @deprecated Compatibility alias for legacy browser TTS/character settings code. */
   [key: string]: any;
 }
 
@@ -95,7 +119,7 @@ export interface FAQItem {
 }
 
 export interface FAQKnowledge {
-  source?: 'shared';
+  source?: 'shared' | 'character-local';
   entries?: FAQItem[];
 }
 
@@ -133,6 +157,7 @@ export interface CharacterSettings {
 export interface Character {
   identity: CharacterIdentity;
   avatar: AvatarConfig;
+  backgrounds: BackgroundConfig;
   knowledge: CharacterKnowledge;
   textModels: TextModelsConfig;
   voiceModels: VoiceModelsConfig;
@@ -149,6 +174,7 @@ export interface LegacyCharacter {
   greeting: string;
   systemInstructions: string;
   avatar: AvatarConfig;
+  backgrounds?: BackgroundConfig;
   ai: ChatModelConfig;
   voice: VoiceConfig;
   enabled: boolean;
@@ -168,6 +194,33 @@ export function normalizeCharacter(
     ? { type: 'portrait', source: value.avatar }
     : value.avatar ?? {};
   const faq = value.knowledge?.faq ?? { source: 'shared' };
+
+  const avatarAssets: AvatarAsset[] = Array.isArray(avatar.assets)
+    ? avatar.assets
+    : avatar.source
+      ? [{
+          id: String(avatar.selectedId ?? 'default-avatar'),
+          name: String(avatar.name ?? identity.displayName ?? 'Avatar'),
+          type: (avatar.type ?? 'portrait') as AvatarType,
+          source: String(avatar.source),
+          thumbnail: avatar.thumbnail,
+          fallbackSource: avatar.fallbackSource,
+          animationSpeed: avatar.animationSpeed,
+          customAnimationData: avatar.customAnimationData,
+        }]
+      : [];
+
+  const legacyBackgrounds = value.backgrounds as BackgroundConfig | undefined;
+  const legacyBackgroundSource = String(value.avatar?.backgroundSource ?? '');
+  const backgroundAssets: BackgroundAsset[] = Array.isArray(legacyBackgrounds?.assets)
+    ? legacyBackgrounds.assets
+    : legacyBackgroundSource
+      ? [{ id: 'default-background', name: 'Default Background', source: legacyBackgroundSource }]
+      : [];
+
+  const selectedAvatarId = String(avatar.selectedId ?? avatarAssets[0]?.id ?? 'default-avatar');
+  const selectedAvatar = avatarAssets.find((asset) => asset.id === selectedAvatarId) ?? avatarAssets[0];
+  const selectedBackgroundId = String(legacyBackgrounds?.selectedId ?? backgroundAssets[0]?.id ?? '');
 
   const legacyText = value.textModels?.default ?? value.ai ?? {};
   const primaryText = value.textModels?.primary ?? legacyText;
@@ -213,9 +266,15 @@ export function normalizeCharacter(
       systemInstructions: String(identity.systemInstructions ?? ''),
     },
     avatar: {
-      type: (avatar.type ?? 'portrait') as AvatarType,
-      source: String(avatar.source ?? ''),
+      type: (selectedAvatar?.type ?? avatar.type ?? 'portrait') as AvatarType,
+      source: String(selectedAvatar?.source ?? avatar.source ?? ''),
+      selectedId: selectedAvatarId,
+      assets: avatarAssets,
       ...avatar,
+    },
+    backgrounds: {
+      selectedId: selectedBackgroundId,
+      assets: backgroundAssets,
     },
     knowledge: {
       faq: {
@@ -238,8 +297,6 @@ export function normalizeCharacter(
         model: String(secondaryText.model ?? 'faq-keyword-v1'),
         enabled: secondaryText.enabled === true,
       },
-      // Keep a runtime compatibility alias so legacy CharacterForm and browser
-      // TTS code can continue to read the previous `default` shape safely.
       default: {
         provider: primaryText.provider ?? 'local',
         model: String(primaryText.model ?? 'faq-keyword-v1'),
@@ -258,8 +315,6 @@ export function normalizeCharacter(
         enabled: secondaryVoice.enabled === true,
       },
       output: outputVoice,
-      // Keep the old TTS alias pointing to the output configuration. This is
-      // deliberately a compatibility bridge; new code should use `output`.
       default: outputVoice,
     },
     settings: {
