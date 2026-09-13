@@ -33,6 +33,13 @@ export interface PersonalityConfig {
   communicationStyle: string;
 }
 
+export interface AvatarPreset {
+  id: string;
+  name: string;
+  avatarSource: string;
+  backgroundSource: string;
+}
+
 export interface AvatarConfig {
   type: AvatarType;
   source: string;
@@ -42,6 +49,9 @@ export interface AvatarConfig {
   thinkingSource?: string;
   speakingSource?: string;
   errorSource?: string;
+  backgroundSource?: string;
+  presetId?: string;
+  presets?: AvatarPreset[];
   animationSpeed?: 'slow' | 'normal' | 'fast';
   customAnimationData?: Record<string, unknown>;
 }
@@ -198,6 +208,7 @@ export function normalizeCharacter(
         communicationStyle:
           String(personality.communicationStyle ?? ''),
       },
+
 
       greeting: String(identity.greeting ?? ''),
       systemInstructions:
