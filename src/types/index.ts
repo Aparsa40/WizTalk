@@ -1,17 +1,8 @@
 import type { ReactElement } from 'react';
 
-export type Provider =
-  | 'local'
-  | 'gemini'
-  | 'openai'
-  | 'openrouter';
+export type Provider = 'local' | 'openrouter' | 'huggingface';
 
-export type AvatarState =
-  | 'idle'
-  | 'listening'
-  | 'thinking'
-  | 'speaking'
-  | 'error';
+export type AvatarState = 'idle' | 'listening' | 'thinking' | 'speaking' | 'error';
 
 export type AvatarType =
   | 'portrait'
@@ -22,9 +13,7 @@ export type AvatarType =
   | 'live2d'
   | 'canvas-3d';
 
-export type VoiceProvider =
-  | 'browser'
-  | 'external';
+export type VoiceProvider = 'browser' | 'external';
 
 export interface PersonalityConfig {
   description: string;
@@ -56,15 +45,18 @@ export interface AvatarConfig {
   customAnimationData?: Record<string, unknown>;
 }
 
-export interface TextModelConfig {
+export interface ChatModelConfig {
   provider: Provider;
   model: string;
+  enabled?: boolean;
 }
 
 export interface TextModelsConfig {
-  default: TextModelConfig;
+  primary: ChatModelConfig;
+  secondary: ChatModelConfig;
 }
 
+/** TTS/output configuration is intentionally separate from voice response models. */
 export interface VoiceConfig {
   provider: VoiceProvider;
   voiceId?: string;
@@ -77,8 +69,11 @@ export interface VoiceConfig {
   voiceName?: string | null;
 }
 
+/** Voice Chat has its own model pair; output TTS is the final rendering layer. */
 export interface VoiceModelsConfig {
-  default: VoiceConfig;
+  primary: ChatModelConfig;
+  secondary: ChatModelConfig;
+  output: VoiceConfig;
 }
 
 export interface FAQItem {
@@ -134,10 +129,6 @@ export interface Character {
   settings: CharacterSettings;
 }
 
-
-/**
- * ساختار قدیمی برای migration
- */
 export interface LegacyCharacter {
   id: string;
   name: string;
@@ -148,50 +139,45 @@ export interface LegacyCharacter {
   greeting: string;
   systemInstructions: string;
   avatar: AvatarConfig;
-  ai: TextModelConfig;
+  ai: ChatModelConfig;
   voice: VoiceConfig;
   enabled: boolean;
   source?: 'builtin' | 'custom';
 }
 
-
-/**
- * تبدیل Character قدیمی به ساختار جدید
- */
 export function normalizeCharacter(
   raw: Character | LegacyCharacter | Record<string, unknown>,
   source: 'builtin' | 'custom' = 'builtin',
 ): Character {
-
   const value = raw as Record<string, any>;
-
   const identity = value.identity ?? value;
+  const personality = typeof identity.personality === 'string'
+    ? { description: identity.personality, behavior: '', tone: '', communicationStyle: '' }
+    : identity.personality ?? {};
+  const avatar = typeof value.avatar === 'string'
+    ? { type: 'portrait', source: value.avatar }
+    : value.avatar ?? {};
+  const faq = value.knowledge?.faq ?? { source: 'shared' };
 
-  const personality =
-    typeof identity.personality === 'string'
-      ? {
-          description: identity.personality,
-          behavior: '',
-          tone: '',
-          communicationStyle: '',
-        }
-      : identity.personality ?? {};
+  const legacyText = value.textModels?.default ?? value.ai ?? {};
+  const primaryText = value.textModels?.primary ?? legacyText;
+  const secondaryText = value.textModels?.secondary ?? {
+    provider: primaryText.provider ?? 'local',
+    model: primaryText.model ?? 'faq-keyword-v1',
+    enabled: false,
+  };
 
-
-  const avatar =
-    typeof value.avatar === 'string'
-      ? {
-          type: 'portrait',
-          source: value.avatar,
-        }
-      : value.avatar ?? {};
-
-
-  const faq =
-    value.knowledge?.faq ?? {
-      source: 'shared',
-    };
-
+  const legacyVoiceOutput = value.voiceModels?.default ?? value.voice ?? {};
+  const primaryVoice = value.voiceModels?.primary ?? {
+    provider: primaryText.provider ?? 'local',
+    model: primaryText.model ?? 'faq-keyword-v1',
+    enabled: false,
+  };
+  const secondaryVoice = value.voiceModels?.secondary ?? {
+    provider: primaryVoice.provider ?? 'local',
+    model: primaryVoice.model ?? 'faq-keyword-v1',
+    enabled: false,
+  };
 
   return {
     identity: {
@@ -200,107 +186,66 @@ export function normalizeCharacter(
       displayName: String(identity.displayName ?? ''),
       description: String(identity.description ?? ''),
       role: String(identity.role ?? ''),
-
       personality: {
         description: String(personality.description ?? ''),
         behavior: String(personality.behavior ?? ''),
         tone: String(personality.tone ?? ''),
-        communicationStyle:
-          String(personality.communicationStyle ?? ''),
+        communicationStyle: String(personality.communicationStyle ?? ''),
       },
-
-
       greeting: String(identity.greeting ?? ''),
-      systemInstructions:
-        String(identity.systemInstructions ?? ''),
+      systemInstructions: String(identity.systemInstructions ?? ''),
     },
-
-
     avatar: {
-      type:
-        (avatar.type ?? 'portrait') as AvatarType,
-      source:
-        String(avatar.source ?? ''),
+      type: (avatar.type ?? 'portrait') as AvatarType,
+      source: String(avatar.source ?? ''),
       ...avatar,
     },
-
-
     knowledge: {
       faq: {
         source: faq.source,
-        entries:
-          Array.isArray(faq.entries)
-            ? faq.entries
-            : undefined,
+        entries: Array.isArray(faq.entries) ? faq.entries : undefined,
       },
-
-      raw: {
-        content:
-          String(value.knowledge?.raw?.content ?? ''),
-      },
-
-      sources:
-        value.knowledge?.sources &&
-        typeof value.knowledge.sources === 'object'
-          ? value.knowledge.sources
-          : {},
+      raw: { content: String(value.knowledge?.raw?.content ?? '') },
+      sources: value.knowledge?.sources && typeof value.knowledge.sources === 'object'
+        ? value.knowledge.sources
+        : {},
     },
-
-
     textModels: {
-      default: {
-        provider:
-          value.textModels?.default?.provider ??
-          value.ai?.provider ??
-          'local',
-
-        model:
-          String(
-            value.textModels?.default?.model ??
-            value.ai?.model ??
-            'faq-keyword-v1',
-          ),
+      primary: {
+        provider: primaryText.provider ?? 'local',
+        model: String(primaryText.model ?? 'faq-keyword-v1'),
+        enabled: primaryText.enabled !== false,
+      },
+      secondary: {
+        provider: secondaryText.provider ?? 'local',
+        model: String(secondaryText.model ?? 'faq-keyword-v1'),
+        enabled: secondaryText.enabled === true,
       },
     },
-
-
     voiceModels: {
-      default: {
-        provider:
-          value.voiceModels?.default?.provider ??
-          value.voice?.provider ??
-          'browser',
-
-        language:
-          String(
-            value.voiceModels?.default?.language ??
-            value.voice?.language ??
-            'fa-IR',
-          ),
-
-        enabled:
-          value.voiceModels?.default?.enabled ??
-          (value.voice?.enabled !== false),
-
-        ...(value.voice ?? {}),
-        ...(value.voiceModels?.default ?? {}),
+      primary: {
+        provider: primaryVoice.provider ?? 'local',
+        model: String(primaryVoice.model ?? 'faq-keyword-v1'),
+        enabled: primaryVoice.enabled === true,
+      },
+      secondary: {
+        provider: secondaryVoice.provider ?? 'local',
+        model: String(secondaryVoice.model ?? 'faq-keyword-v1'),
+        enabled: secondaryVoice.enabled === true,
+      },
+      output: {
+        provider: legacyVoiceOutput.provider ?? 'browser',
+        language: String(legacyVoiceOutput.language ?? 'fa-IR'),
+        enabled: legacyVoiceOutput.enabled !== false,
+        ...legacyVoiceOutput,
       },
     },
-
-
     settings: {
-      enabled:
-        value.settings?.enabled ??
-        (value.enabled !== false),
-
-      source:
-        value.settings?.source ??
-        value.source ??
-        source,
+      enabled: value.settings?.enabled ?? (value.enabled !== false),
+      source: value.settings?.source ?? value.source ?? source,
     },
   };
 }
-
 
 export interface Message {
   id: string;
@@ -309,14 +254,12 @@ export interface Message {
   timestamp: number;
 }
 
-
 export interface UserProfile {
   name: string;
   preferredAddress: string;
   interests: string[];
   notes: string;
 }
-
 
 export interface AppState {
   selectedCharacterId: string | null;
@@ -325,7 +268,6 @@ export interface AppState {
   voiceEnabled: boolean;
   userProfile: UserProfile;
 }
-
 
 export interface ProviderConfig {
   id: Provider;
@@ -336,25 +278,13 @@ export interface ProviderConfig {
   requiresServerKey: boolean;
 }
 
-
-export type VoiceEventType =
-  | 'start'
-  | 'end'
-  | 'pause'
-  | 'resume';
-
-
-export type VoiceEventSource =
-  | 'browser'
-  | 'piper'
-  | 'external';
-
+export type VoiceEventType = 'start' | 'end' | 'pause' | 'resume';
+export type VoiceEventSource = 'browser' | 'piper' | 'external';
 
 export interface VoiceEvent {
   type: VoiceEventType;
   characterId: string;
   timestamp: number;
-
   amplitude?: number;
   phoneme?: string;
   duration?: number;
@@ -363,20 +293,9 @@ export interface VoiceEvent {
   audioLevel?: number;
 }
 
-
-export type VoiceEventListener =
-  (event: VoiceEvent) => void;
-
+export type VoiceEventListener = (event: VoiceEvent) => void;
 
 export interface AvatarRenderer {
-
-  render(
-    state: AvatarState,
-    config: AvatarConfig,
-  ): ReactElement;
-
-
-  preload?(
-    config: AvatarConfig,
-  ): Promise<void>;
+  render(state: AvatarState, config: AvatarConfig): ReactElement;
+  preload?(config: AvatarConfig): Promise<void>;
 }
