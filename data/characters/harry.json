@@ -11,15 +11,21 @@
   },
   "avatar": {
     "type": "animated-2d",
+    "selectedId": "harry-classic",
     "source": "/avatars/harry-classic.svg",
     "fallbackSource": "/avatars/harry-classic.svg",
-    "backgroundSource": "/avatars/harry-bedroom.svg",
-    "presetId": "classic-bedroom",
-    "presets": [
-      {"id":"classic-bedroom","name":"Classic • Wizarding Study","avatarSource":"/avatars/harry-classic.svg","backgroundSource":"/avatars/harry-bedroom.svg"},
-      {"id":"illustrated-hall","name":"Illustrated • Wizarding Hall","avatarSource":"/avatars/harry-illustrated.svg","backgroundSource":"/avatars/harry-hall.svg"}
+    "assets": [
+      {"id":"harry-classic","name":"Harry • Classic","type":"animated-2d","source":"/avatars/harry-classic.svg","fallbackSource":"/avatars/harry-classic.svg","animationSpeed":"normal"},
+      {"id":"harry-illustrated","name":"Harry • Illustrated","type":"animated-2d","source":"/avatars/harry-illustrated.svg","fallbackSource":"/avatars/harry-illustrated.svg","animationSpeed":"normal"}
     ],
     "animationSpeed": "normal"
+  },
+  "backgrounds": {
+    "selectedId": "hogwarts-bedroom",
+    "assets": [
+      {"id":"hogwarts-bedroom","name":"Hogwarts • Wizarding Bedroom","source":"/avatars/harry-bedroom.svg","position":"center","size":"cover"},
+      {"id":"hogwarts-hall","name":"Hogwarts • Great Hall","source":"/avatars/harry-hall.svg","position":"center","size":"cover"}
+    ]
   },
   "knowledge": {"faq":{"source":"character-local","entries":[{"keywords":["سلام","hello"],"response":"سلام! خوشحالم که اینجایی. چه چیزی می‌خوای درباره دنیای جادو یا خودم بدونی؟"},{"keywords":["هاگوارتز","hogwarts"],"response":"هاگوارتز برای من فقط یک مدرسه نیست؛ بیشتر شبیه خانه‌ای است که بهترین دوستم را در آن پیدا کردم."},{"keywords":["کوئیدیچ","quidditch"],"response":"کوئیدیچ یکی از هیجان‌انگیزترین بخش‌های زندگی من در هاگوارتز است."}]},"raw":{"content":"این دانش محلی فقط متعلق به شخصیت Harry است و به شخصیت‌های دیگر وابسته نیست."},"sources":{}},
   "textModels": {
