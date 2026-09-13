@@ -35,15 +35,10 @@ export type VoiceEventListener = (event: VoiceEvent) => void;
  */
 export class VoiceService {
   private static recognition: VoiceRecognition | null = null;
-
   private static voiceListeners = new Set<VoiceEventListener>();
-
   private static isSpeakingState = false;
-
   private static currentUtterance: SpeechSynthesisUtterance | null = null;
-
   private static currentCharacterId: string | null = null;
-
   private static speechStartedAt = 0;
 
   // ---------------------------------------------------------------------------
@@ -91,7 +86,7 @@ export class VoiceService {
 
     const recognition = new Constructor();
 
-    recognition.lang = character.voiceModels.default.language || 'fa-IR';
+    recognition.lang = character.voiceModels.output.language || 'fa-IR';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
@@ -230,7 +225,7 @@ export class VoiceService {
         cleanText
       );
 
-      const voiceConfig = character.voiceModels.default;
+      const voiceConfig = character.voiceModels.output;
 
       utterance.lang = voiceConfig.language || 'fa-IR';
 
@@ -680,7 +675,7 @@ export class VoiceService {
   static getVoiceConfig(
     character: Character
   ): VoiceConfig {
-    return character.voiceModels.default;
+    return character.voiceModels.output;
   }
 
   static updateVoiceConfig(
@@ -690,7 +685,10 @@ export class VoiceService {
     return {
       ...character,
 
-      voiceModels: { default: { ...character.voiceModels.default, ...config } },
+      voiceModels: {
+        ...character.voiceModels,
+        output: { ...character.voiceModels.output, ...config },
+      },
     };
   }
 
