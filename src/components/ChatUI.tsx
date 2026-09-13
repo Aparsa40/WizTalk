@@ -8,11 +8,7 @@ import { MemoryService } from '../services/memory';
 import { voiceManager } from '../services/voice-manager';
 import { LipSyncCoordinator } from '../services/lipsync-coordinator';
 
-interface ChatUIProps {
-  character: Character;
-  onBack: () => void;
-  onOpenSettings: () => void;
-}
+interface ChatUIProps { character: Character; onBack: () => void; onOpenSettings: () => void; }
 
 export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -58,7 +54,6 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
   const submitMessage = async (rawText: string, mode: ChatMode) => {
     const text = rawText.trim();
     if (!text || isTyping) return;
-
     const user: Message = { id: crypto.randomUUID(), sender: 'user', text, timestamp: Date.now() };
     const next = [...messages, user];
     setMessages(next);
@@ -66,7 +61,6 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
     setInput('');
     setIsTyping(true);
     controller.current.setState('thinking');
-
     try {
       const result = await ApiService.sendMessage(text, character.identity.id, next, mode);
       const reply: Message = { id: crypto.randomUUID(), sender: 'character', text: result.response, timestamp: Date.now() };
@@ -81,9 +75,7 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
     }
   };
 
-  const handleSend = async () => {
-    await submitMessage(input, 'text');
-  };
+  const handleSend = async () => { await submitMessage(input, 'text'); };
 
   const toggleListening = async () => {
     if (isListening) {
@@ -92,42 +84,28 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
       controller.current.setState('idle');
       return;
     }
-
     if (isTyping) return;
-
     try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('microphone permission is not supported');
-      }
-
-      // Explicitly trigger the browser/OS microphone permission on first activation.
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error('microphone permission is not supported');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((track) => track.stop());
-
-      const recognition = voiceManager.initSpeechToText(
-        character,
-        (text) => {
-          setIsListening(false);
-          voiceManager.stopListening();
-          void submitMessage(text, 'voice');
-        },
-        (message) => {
-          console.warn('Speech recognition error:', message);
-          setIsListening(false);
-          controller.current.setState('idle');
-        },
-        () => {
-          setIsListening(false);
-          if (!isTyping) controller.current.setState('idle');
-        },
-      );
-
+      const recognition = voiceManager.initSpeechToText(character, (text) => {
+        setIsListening(false);
+        voiceManager.stopListening();
+        void submitMessage(text, 'voice');
+      }, (message) => {
+        console.warn('Speech recognition error:', message);
+        setIsListening(false);
+        controller.current.setState('idle');
+      }, () => {
+        setIsListening(false);
+        if (!isTyping) controller.current.setState('idle');
+      });
       if (!recognition || !voiceManager.startListening()) {
         setIsListening(false);
         controller.current.setState('idle');
         return;
       }
-
       setIsListening(true);
       controller.current.setState('listening');
     } catch (error) {
@@ -144,15 +122,19 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
 
   const lastCharacterMessage = [...messages].reverse().find((message) => message.sender === 'character');
   const lastUserMessage = [...messages].reverse().find((message) => message.sender === 'user');
-  const background = character.avatar.backgroundSource || '';
+  const background = character.backgrounds.assets.find((asset) => asset.id === character.backgrounds.selectedId) ?? character.backgrounds.assets[0];
+  const backgroundStyle = background ? {
+    backgroundImage: `linear-gradient(180deg, rgba(8,8,14,.16), rgba(8,8,14,.48)), url(${background.source})`,
+    backgroundSize: background.size ?? 'cover',
+    backgroundPosition: background.position ?? 'center',
+  } : undefined;
 
-  return <div dir="rtl" className="flex min-h-[100dvh] flex-col overflow-hidden bg-[#0d0b12] text-amber-50" style={{ backgroundImage: `linear-gradient(180deg, rgba(8,8,14,.16), rgba(8,8,14,.48)), url(${background})`, backgroundSize: 'cover', backgroundPosition: 'center' }}>
+  return <div dir="rtl" className="flex min-h-[100dvh] flex-col overflow-hidden bg-[#0d0b12] text-amber-50" style={backgroundStyle}>
     <header className="z-20 flex shrink-0 items-center justify-between border-b border-white/10 bg-black/35 px-3 py-2.5 backdrop-blur-md sm:px-4 sm:py-3">
       <button type="button" onClick={onBack} aria-label="بازگشت به انتخاب شخصیت" className="rounded-full p-2 transition hover:bg-white/10"><ArrowRight className="h-5 w-5 sm:h-6 sm:w-6" /></button>
       <div className="min-w-0 px-2 text-center"><h2 className="truncate font-serif text-base font-bold text-amber-200 sm:text-xl">{character.identity.displayName}</h2><span className="hidden text-xs text-amber-50/60 sm:inline">گفت‌وگوی اختصاصی شخصیت</span></div>
       <button type="button" onClick={onOpenSettings} aria-label="تنظیمات شخصیت" className="rounded-full p-2 transition hover:bg-white/10"><SettingsIcon className="h-5 w-5 sm:h-6 sm:w-6" /></button>
     </header>
-
     <main className="relative flex min-h-0 flex-1 flex-col">
       <section className="relative flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden px-3 pb-28 pt-5 sm:px-6 sm:pb-32 sm:pt-7">
         <div className="absolute inset-0 bg-black/10" aria-hidden="true" />
@@ -166,7 +148,6 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
           {lastUserMessage && <p className="mt-4 max-h-20 max-w-lg overflow-hidden rounded-full border border-white/10 bg-black/35 px-4 py-2 text-xs text-amber-50/70 backdrop-blur">پیام شما: {lastUserMessage.text}</p>}
         </div>
       </section>
-
       <div className="absolute inset-x-0 bottom-0 z-20 border-t border-white/10 bg-black/55 p-2.5 pb-[max(.625rem,env(safe-area-inset-bottom))] backdrop-blur-xl sm:p-3">
         <div className="mx-auto flex w-full max-w-3xl items-end gap-1.5 sm:gap-2">
           <button type="button" onClick={() => void repeatLast()} aria-label="پخش دوباره آخرین پاسخ" className="shrink-0 rounded-full bg-black/40 p-2.5 text-amber-100 transition hover:bg-black/60 sm:p-3"><Volume2 className="h-5 w-5 sm:h-6 sm:w-6" /></button>
