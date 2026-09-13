@@ -1,10 +1,10 @@
 # WizTalk
 
-WizTalk is a Persian-first, modular interactive AI character platform. Each Character is designed as an independent hybrid chatbot with its own identity, personality, avatar, voice configuration, AI route, knowledge, settings, and memory boundary.
+WizTalk is a Persian-first, modular interactive AI character platform. Each Character is designed as an independent hybrid chatbot with its own identity, personality, Avatar, Background, voice configuration, AI route, knowledge, settings, and memory boundary.
 
-**Current Version:** v2.0.0 — Architecture Baseline + Voice Model Stack
+**Current Version:** v2.0.0 — Architecture Baseline + Unreleased Post-v2 Voice/Avatar Stack
 **Release Date:** 2026-09-12
-**Status:** Stable architectural baseline with the first live model-backed voice stack enabled for Harry.
+**Status:** v2.0.0 remains the stable release baseline; post-v2 work currently enables Harry's live model-backed voice stack and independent Avatar/Background selection.
 
 ## v2.0.0 — What this release represents
 
@@ -19,7 +19,7 @@ WizTalk v2.0.0 is the first complete post-foundation baseline. It consolidates t
 7. Responsive Pass
 8. Integration & Acceptance
 
-The current post-baseline voice stack now activates real OpenRouter and Hugging Face response routes for Harry and adds a server-side model-backed TTS layer.
+Post-v2 work is intentionally kept unreleased until the project owner decides on the next version/tag.
 
 ## Core Architecture
 
@@ -62,11 +62,14 @@ Microphone → Browser Speech Recognition → /api/chat (voice)
                          Browser TTS fallback
 ```
 
+The current Voice Chat path is **text response generation + TTS**, not end-to-end speech-to-speech.
+
 ### Character isolation
 
 Every Character has independent configuration for:
 - Identity and personality
-- Avatar
+- Avatar assets and selected Avatar
+- Background assets and selected Background
 - Text model/provider route
 - Voice response model/provider route
 - TTS/output settings
@@ -91,9 +94,11 @@ Voice mode therefore changes the input/output experience without silently switch
 
 `VoiceManager` owns the final speech rendering layer. Harry's current TTS engine is OpenRouter's free `fish-audio/s2.1-pro-free:free` model through the server-side `/api/tts` endpoint. The browser receives audio bytes rather than the OpenRouter credential. Browser Speech Synthesis remains the final fallback.
 
-### Avatar architecture
+### Avatar and Background architecture
 
-The Avatar system is renderer-neutral and separates Avatar state/control from rendering. Current architecture supports states such as idle, listening, thinking, speaking, and error and is designed for future SVG, Live2D, 3D, and video renderers.
+Avatar and Background are separate Character resources. A Character can select any supported Avatar asset independently from any supported Background asset. Legacy coupled preset data remains compatible through normalization.
+
+The Avatar system is renderer-neutral and supports states such as idle, listening, thinking, speaking, and error. The architecture is designed for future SVG, Live2D, VRM/3D, and video renderers.
 
 ## Current AI Providers and Models
 
@@ -173,7 +178,7 @@ WizTalk follows Semantic Versioning:
 - **MINOR** — backward-compatible feature releases
 - **PATCH** — fixes and security/maintenance releases
 
-`v2.0.0` remains the stable architecture baseline while post-baseline feature work lands through isolated branches and Pull Requests.
+`v2.0.0` remains the stable release baseline. Post-v2 feature work stays under `Unreleased` until an explicit release version is cut.
 
 ## Post-v2 Development Roadmap
 
@@ -193,7 +198,7 @@ Each phase must use a new dedicated branch, contain only that phase's scope, pas
 ## Documentation
 
 - `docs/architecture.md` — architecture overview
-- `docs/modular-architecture.md` — Avatar, Voice, Lip-Sync, and Character modularity
+- `docs/modular-architecture.md` — Avatar, Background, Voice, Lip-Sync, and Character modularity
 - `docs/character-system.md` — Character schema and lifecycle
 - `docs/voice-system.md` — voice architecture and model-backed TTS
 - `docs/memory-system.md` — current memory model
@@ -212,4 +217,4 @@ MIT License — see `LICENSE`.
 
 ---
 
-**WizTalk v2.0.0 — Stable Architecture Baseline + Live Voice Model Stack**
+**WizTalk v2.0.0 — Stable Release Baseline | Post-v2 Voice/Avatar Work Unreleased**
