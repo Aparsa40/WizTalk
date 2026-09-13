@@ -54,6 +54,11 @@ export interface ChatModelConfig {
 export interface TextModelsConfig {
   primary: ChatModelConfig;
   secondary: ChatModelConfig;
+  /**
+   * @deprecated Compatibility alias for legacy code during the model-pair migration.
+   * New runtime code should use primary/secondary.
+   */
+  [key: string]: any;
 }
 
 /** TTS/output configuration is intentionally separate from voice response models. */
@@ -74,6 +79,11 @@ export interface VoiceModelsConfig {
   primary: ChatModelConfig;
   secondary: ChatModelConfig;
   output: VoiceConfig;
+  /**
+   * @deprecated Compatibility alias for legacy browser TTS/character settings code.
+   * New runtime code should use output for TTS and primary/secondary for Voice Chat.
+   */
+  [key: string]: any;
 }
 
 export interface FAQItem {
@@ -179,6 +189,13 @@ export function normalizeCharacter(
     enabled: false,
   };
 
+  const outputVoice: VoiceConfig = {
+    provider: legacyVoiceOutput.provider ?? 'browser',
+    language: String(legacyVoiceOutput.language ?? 'fa-IR'),
+    enabled: legacyVoiceOutput.enabled !== false,
+    ...legacyVoiceOutput,
+  };
+
   return {
     identity: {
       id: String(identity.id ?? ''),
@@ -221,6 +238,13 @@ export function normalizeCharacter(
         model: String(secondaryText.model ?? 'faq-keyword-v1'),
         enabled: secondaryText.enabled === true,
       },
+      // Keep a runtime compatibility alias so legacy CharacterForm and browser
+      // TTS code can continue to read the previous `default` shape safely.
+      default: {
+        provider: primaryText.provider ?? 'local',
+        model: String(primaryText.model ?? 'faq-keyword-v1'),
+        enabled: primaryText.enabled !== false,
+      },
     },
     voiceModels: {
       primary: {
@@ -233,12 +257,10 @@ export function normalizeCharacter(
         model: String(secondaryVoice.model ?? 'faq-keyword-v1'),
         enabled: secondaryVoice.enabled === true,
       },
-      output: {
-        provider: legacyVoiceOutput.provider ?? 'browser',
-        language: String(legacyVoiceOutput.language ?? 'fa-IR'),
-        enabled: legacyVoiceOutput.enabled !== false,
-        ...legacyVoiceOutput,
-      },
+      output: outputVoice,
+      // Keep the old TTS alias pointing to the output configuration. This is
+      // deliberately a compatibility bridge; new code should use `output`.
+      default: outputVoice,
     },
     settings: {
       enabled: value.settings?.enabled ?? (value.enabled !== false),
