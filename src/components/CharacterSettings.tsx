@@ -5,15 +5,16 @@ import { Character } from '../types';
 interface CharacterSettingsProps { character: Character; onSave: (character: Character) => void; onClose: () => void; }
 
 export function CharacterSettings({ character, onSave, onClose }: CharacterSettingsProps) {
+  const output = character.voiceModels.output;
   const [displayName, setDisplayName] = useState(character.identity.displayName);
   const [description, setDescription] = useState(character.identity.description);
   const [greeting, setGreeting] = useState(character.identity.greeting);
   const [selectedPreset, setSelectedPreset] = useState(character.avatar.presetId ?? character.avatar.presets?.[0]?.id ?? '');
-  const [voiceEnabled, setVoiceEnabled] = useState(character.voiceModels.default.enabled);
-  const [voiceLanguage, setVoiceLanguage] = useState(character.voiceModels.default.language);
-  const [speechRate, setSpeechRate] = useState(character.voiceModels.default.speechRate ?? character.voiceModels.default.rate ?? 1);
-  const [pitch, setPitch] = useState(character.voiceModels.default.pitch ?? 1);
-  const [volume, setVolume] = useState(character.voiceModels.default.volume ?? 1);
+  const [voiceEnabled, setVoiceEnabled] = useState(output.enabled);
+  const [voiceLanguage, setVoiceLanguage] = useState(output.language);
+  const [speechRate, setSpeechRate] = useState(output.speechRate ?? output.rate ?? 1);
+  const [pitch, setPitch] = useState(output.pitch ?? 1);
+  const [volume, setVolume] = useState(output.volume ?? 1);
   const presets = character.avatar.presets ?? [];
   const activeIndex = Math.max(0, presets.findIndex((preset) => preset.id === selectedPreset));
   const activePreset = presets[activeIndex];
@@ -25,7 +26,7 @@ export function CharacterSettings({ character, onSave, onClose }: CharacterSetti
       ...character,
       identity: { ...character.identity, displayName: displayName.trim() || character.identity.displayName, description: description.trim(), greeting: greeting.trim() || character.identity.greeting },
       avatar: nextAvatar,
-      voiceModels: { ...character.voiceModels, default: { ...character.voiceModels.default, enabled: voiceEnabled, language: voiceLanguage.trim() || character.voiceModels.default.language, speechRate, rate: speechRate, pitch, volume } },
+      voiceModels: { ...character.voiceModels, output: { ...character.voiceModels.output, enabled: voiceEnabled, language: voiceLanguage.trim() || character.voiceModels.output.language, speechRate, rate: speechRate, pitch, volume } },
     });
     onClose();
   };

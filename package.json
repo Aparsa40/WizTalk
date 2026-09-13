@@ -14,7 +14,6 @@
     "test": "tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
-    "@google/genai": "^2.4.0",
     "@tailwindcss/vite": "^4.1.14",
     "@vitejs/plugin-react": "^5.0.4",
     "dotenv": "^17.2.3",
@@ -42,17 +41,7 @@
     "tsx": "^4.21.0",
     "typescript": "~5.8.2"
   },
-  "keywords": [
-    "persian",
-    "ai",
-    "character",
-    "avatar",
-    "voice",
-    "chat",
-    "wizard",
-    "conversational",
-    "modular-ai"
-  ],
+  "keywords": ["persian","ai","character","avatar","voice","chat","wizard","conversational","modular-ai"],
   "author": "Amir Parsa",
   "license": "MIT"
 }

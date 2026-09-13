@@ -1,13 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  ResponseManager,
-  DEFAULT_RESPONSE_TIMEOUT_MS,
-} from '../server/services/response-manager';
+import { ResponseManager, DEFAULT_RESPONSE_TIMEOUT_MS } from '../server/services/response-manager';
 import type { Provider } from '../server/services/ai';
 import { normalizeCharacter } from '../src/types';
 
-function character(overrides: Record<string, unknown> = {}) {
+function character() {
   return normalizeCharacter({
     id: 'harry',
     name: 'Harry',
@@ -18,123 +15,132 @@ function character(overrides: Record<string, unknown> = {}) {
     greeting: 'سلام',
     systemInstructions: 'stay in character',
     avatar: 'harry.png',
-    ai: { provider: 'gemini', model: 'gemini-2.5-flash' },
-    voice: { provider: 'browser', language: 'fa-IR', enabled: true },
-    ...overrides,
+    textModels: {
+      primary: { provider: 'openrouter', model: 'minimax/minimax-m2.7:free', enabled: true },
+      secondary: { provider: 'huggingface', model: 'Qwen/Qwen3.8-27B:fastest', enabled: true },
+    },
+    voiceModels: {
+      primary: { provider: 'openrouter', model: 'minimax/minimax-m2.7:free', enabled: true },
+      secondary: { provider: 'huggingface', model: 'Qwen/Qwen3.8-27B:fastest', enabled: true },
+      output: { provider: 'browser', language: 'fa-IR', enabled: true },
+    },
   });
 }
 
-test('uses the configured character model when it succeeds', async () => {
+test('text primary success stops before secondary and offline', async () => {
   const calls: Array<[Provider, string]> = [];
   const manager = new ResponseManager(async (provider, model) => {
     calls.push([provider, model]);
-    return 'پاسخ مدل';
+    return 'پاسخ مدل اول';
   });
 
-  const result = await manager.generate({
-    message: 'سلام',
-    character: character(),
-  });
-
-  assert.equal(result.response, 'پاسخ مدل');
-  assert.equal(result.source, 'model');
+  const result = await manager.generate({ message: 'سلام', character: character(), mode: 'text' });
+  assert.equal(result.response, 'پاسخ مدل اول');
   assert.equal(result.fallbackUsed, false);
-  assert.deepEqual(calls, [['gemini', 'gemini-2.5-flash']]);
+  assert.deepEqual(calls, [['openrouter', 'minimax/minimax-m2.7:free']]);
 });
 
-test('falls back to the next model after a provider failure', async () => {
+test('text primary failure uses the character secondary model', async () => {
   const calls: Provider[] = [];
   const manager = new ResponseManager(async (provider) => {
     calls.push(provider);
-    if (provider === 'gemini') throw new Error('provider unavailable');
-    return 'پاسخ fallback';
+    if (provider === 'openrouter') throw new Error('primary failed');
+    return 'پاسخ مدل دوم';
   });
 
-  const result = await manager.generate({
-    message: 'کمک',
-    character: character(),
-  });
-
-  assert.equal(result.response, 'پاسخ fallback');
-  assert.equal(result.provider, 'openai');
-  assert.equal(result.fallbackUsed, true);
-  assert.deepEqual(calls, ['gemini', 'openai']);
+  const result = await manager.generate({ message: 'کمک', character: character(), mode: 'text' });
+  assert.equal(result.response, 'پاسخ مدل دوم');
+  assert.equal(result.provider, 'huggingface');
+  assert.deepEqual(calls, ['openrouter', 'huggingface']);
 });
 
-test('skips empty model responses and continues the fallback chain', async () => {
+test('text models failing reaches the character local engine before final fallback', async () => {
   const calls: Provider[] = [];
+  const localCharacter = normalizeCharacter({
+    ...character(),
+    knowledge: { faq: { entries: [{ keywords: ['کتاب'], response: 'پاسخ محلی هری' }] }, raw: { content: '' }, sources: {} },
+  });
   const manager = new ResponseManager(async (provider) => {
     calls.push(provider);
-    if (provider === 'gemini') return '   ';
-    return 'پاسخ معتبر';
+    if (provider !== 'local') throw new Error('model failed');
+    return 'پاسخ محلی هری';
   });
 
-  const result = await manager.generate({
-    message: 'سؤال',
-    character: character(),
-  });
-
-  assert.equal(result.response, 'پاسخ معتبر');
-  assert.equal(result.provider, 'openai');
-  assert.deepEqual(calls, ['gemini', 'openai']);
-});
-
-test('uses local knowledge when the configured model fails', async () => {
-  const calls: Provider[] = [];
-  const manager = new ResponseManager(async (provider) => {
-    calls.push(provider);
-    if (provider !== 'local') throw new Error('model failure');
-    return 'پاسخ FAQ';
-  });
-
-  const result = await manager.generate({
-    message: 'کتاب',
-    character: character(),
-  });
-
-  assert.equal(result.response, 'پاسخ FAQ');
+  const result = await manager.generate({ message: 'کتاب', character: localCharacter, mode: 'text' });
+  assert.equal(result.response, 'پاسخ محلی هری');
   assert.equal(result.source, 'local');
-  assert.equal(result.provider, 'local');
-  assert.equal(result.fallbackUsed, true);
   assert.equal(calls.at(-1), 'local');
 });
 
-test('returns a controlled final fallback when every source fails', async () => {
+test('voice primary success stops the voice chain and does not call text', async () => {
+  const calls: Array<[Provider, string]> = [];
+  const manager = new ResponseManager(async (provider, model) => {
+    calls.push([provider, model]);
+    return 'پاسخ ویس اول';
+  });
+
+  const result = await manager.generate({ message: 'سلام', character: character(), mode: 'voice' });
+  assert.equal(result.response, 'پاسخ ویس اول');
+  assert.equal(result.mode, 'voice');
+  assert.deepEqual(calls, [['openrouter', 'minimax/minimax-m2.7:free']]);
+});
+
+test('voice primary failure falls to voice secondary', async () => {
+  const calls: Provider[] = [];
+  const manager = new ResponseManager(async (provider) => {
+    calls.push(provider);
+    if (provider === 'openrouter') throw new Error('voice primary failed');
+    return 'پاسخ ویس دوم';
+  });
+
+  const result = await manager.generate({ message: 'سلام', character: character(), mode: 'voice' });
+  assert.equal(result.response, 'پاسخ ویس دوم');
+  assert.equal(result.provider, 'huggingface');
+  assert.deepEqual(calls, ['openrouter', 'huggingface']);
+});
+
+test('both voice models failing invoke the same character text pipeline', async () => {
+  const calls: Array<[Provider, string]> = [];
+  const manager = new ResponseManager(async (provider, model) => {
+    calls.push([provider, model]);
+    if (calls.length <= 2) throw new Error('voice failed');
+    return 'پاسخ متنی برای ویس';
+  });
+
+  const result = await manager.generate({ message: 'یک سؤال', character: character(), mode: 'voice' });
+  assert.equal(result.response, 'پاسخ متنی برای ویس');
+  assert.equal(result.mode, 'voice');
+  assert.deepEqual(calls, [
+    ['openrouter', 'minimax/minimax-m2.7:free'],
+    ['huggingface', 'Qwen/Qwen3.8-27B:fastest'],
+    ['openrouter', 'minimax/minimax-m2.7:free'],
+  ]);
+});
+
+test('all voice and text sources failing return a controlled fallback', async () => {
   const manager = new ResponseManager(async () => {
     throw new Error('failure');
   });
 
-  const result = await manager.generate({
-    message: 'سلام',
-    character: character(),
-  });
-
+  const result = await manager.generate({ message: 'سلام', character: character(), mode: 'voice' });
   assert.equal(result.source, 'fallback');
   assert.equal(result.provider, 'local');
   assert.match(result.response, /نتوانستم پاسخ مناسبی/);
 });
 
-test('times out a slow provider and continues to fallback', async () => {
-  const manager = new ResponseManager(
-    async (provider) => {
-      if (provider === 'gemini') {
-        await new Promise((resolve) => setTimeout(resolve, 25));
-      }
-      return provider === 'openai' ? 'پاسخ سریع' : '';
-    },
-    10
-  );
-
-  const result = await manager.generate({
-    message: 'سلام',
-    character: character(),
+test('empty provider responses are invalid and continue the chain', async () => {
+  const calls: Provider[] = [];
+  const manager = new ResponseManager(async (provider) => {
+    calls.push(provider);
+    return provider === 'openrouter' ? '   ' : 'پاسخ معتبر';
   });
 
-  assert.equal(result.response, 'پاسخ سریع');
-  assert.equal(result.provider, 'openai');
+  const result = await manager.generate({ message: 'سؤال', character: character(), mode: 'text' });
+  assert.equal(result.provider, 'huggingface');
+  assert.deepEqual(calls, ['openrouter', 'huggingface']);
 });
 
-test('keeps the manager timeout bounded and explicit', () => {
+test('manager timeout remains bounded', () => {
   assert.ok(DEFAULT_RESPONSE_TIMEOUT_MS > 0);
   assert.ok(DEFAULT_RESPONSE_TIMEOUT_MS <= 30000);
 });

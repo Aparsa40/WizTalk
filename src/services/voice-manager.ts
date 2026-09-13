@@ -17,15 +17,8 @@ export interface VoiceResult {
 }
 
 /**
- * Phase 4 voice orchestration boundary.
- *
- * UI code talks only to VoiceManager. Provider-specific browser/external voice
- * behavior stays behind this boundary, which lets a future Piper or remote TTS
- * provider be added without rewriting ChatUI.
- *
- * Failure policy:
- * configured provider -> browser TTS fallback -> text-only result.
- * Voice errors never replace or remove the already-rendered text response.
+ * TTS execution only. Voice response-model fallback is owned by ResponseManager.
+ * This service receives the final validated text and renders it as speech.
  */
 export class VoiceManager {
   private readonly executors: VoiceExecutor[];
@@ -40,43 +33,28 @@ export class VoiceManager {
     onEvent?: VoiceEventListener
   ): Promise<VoiceResult> {
     const cleanText = text.trim();
+    const output = character.voiceModels.output;
 
-    if (!cleanText || !character.voiceModels.default.enabled) {
+    if (!cleanText || !output.enabled) {
       return { spoken: false, provider: 'none' };
     }
 
-    const configuredProvider = character.voiceModels.default.provider;
-    const ordered = this.getOrderedExecutors(configuredProvider);
-
-    // Preserve the configured provider's error as the useful final diagnostic.
-    // Browser fallback errors should not hide the original provider failure.
-    let firstError = '';
+    const configured = this.executors.filter((executor) => executor.provider === output.provider);
+    const browser = this.executors.filter((executor) => executor.provider === 'browser');
+    const ordered = output.provider === 'browser'
+      ? (browser.length ? browser : [this.browserExecutor()])
+      : [...configured, this.browserExecutor()];
 
     for (const executor of ordered) {
       try {
         await executor.speak(cleanText, character, onEvent);
-
-        return {
-          spoken: true,
-          provider: executor.provider,
-        };
+        return { spoken: true, provider: executor.provider };
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : 'voice provider failed';
-
-        if (!firstError) {
-          firstError = message;
-        }
-
-        console.warn(`Voice provider ${executor.provider} failed`, error);
+        console.warn(`Voice output provider ${executor.provider} failed`, error);
       }
     }
 
-    return {
-      spoken: false,
-      provider: 'none',
-      error: firstError || 'voice unavailable',
-    };
+    return { spoken: false, provider: 'none', error: 'voice output unavailable' };
   }
 
   stop(): void {
@@ -97,12 +75,7 @@ export class VoiceManager {
     onError: (message: string) => void,
     onEnd: () => void
   ) {
-    return VoiceService.initSpeechToText(
-      character,
-      onResult,
-      onError,
-      onEnd
-    );
+    return VoiceService.initSpeechToText(character, onResult, onError, onEnd);
   }
 
   startListening(): boolean {
@@ -113,58 +86,11 @@ export class VoiceManager {
     return VoiceService.isSpeechRecognitionSupported();
   }
 
-  private getOrderedExecutors(
-    configuredProvider: VoiceProvider
-  ): VoiceExecutor[] {
-    const configured = this.executors.filter(
-      (executor) => executor.provider === configuredProvider
-    );
-
-    /*
-     * Keep injected browser executors.
-     *
-     * Tests use a browser mock here so VoiceManager can be tested in Node
-     * without depending on the real Web Speech API.
-     */
-    const browserExecutors = this.executors.filter(
-      (executor) => executor.provider === 'browser'
-    );
-
-    /*
-     * If browser is the configured provider, its injected executor is already
-     * the primary provider. Otherwise the configured provider runs first and
-     * browser becomes the fallback.
-     */
-    if (configuredProvider === 'browser') {
-      if (browserExecutors.length > 0) {
-        return browserExecutors;
-      }
-    } else {
-      const fallbackBrowser =
-        browserExecutors.length > 0
-          ? browserExecutors
-          : [
-              {
-                provider: 'browser' as const,
-                speak: (text: string, character: Character, onEvent?: VoiceEventListener) =>
-                  VoiceService.speak(text, character, onEvent),
-              },
-            ];
-
-      return [...configured, ...fallbackBrowser];
-    }
-
-    /*
-     * No injected browser executor was supplied.
-     * Use the real browser TTS implementation as the final voice attempt.
-     */
-    return [
-      {
-        provider: 'browser',
-        speak: (text, character, onEvent) =>
-          VoiceService.speak(text, character, onEvent),
-      },
-    ];
+  private browserExecutor(): VoiceExecutor {
+    return {
+      provider: 'browser',
+      speak: (text, character, onEvent) => VoiceService.speak(text, character, onEvent),
+    };
   }
 }
 

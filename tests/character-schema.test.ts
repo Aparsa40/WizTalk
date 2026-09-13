@@ -4,8 +4,14 @@ import { normalizeCharacter } from '../src/types';
 
 test('normalizes legacy data into isolated character configuration', () => {
   const harry = normalizeCharacter({ id:'harry', name:'Harry', displayName:'هری', description:'brave', role:'student', personality:'loyal', greeting:'سلام', systemInstructions:'stay in character', avatar:'harry.png', ai:{provider:'local',model:'faq-keyword-v1'}, voice:{provider:'browser',language:'fa-IR',enabled:true} });
-  const hermione = normalizeCharacter({ id:'hermione', name:'Hermione', displayName:'هرماینی', description:'smart', role:'student', personality:{description:'precise'}, greeting:'سلام', systemInstructions:'be precise', avatar:{type:'portrait',source:'hermione.png'}, knowledge:{faq:{entries:[{keywords:['کتاب'],response:'کتاب‌ها عالی‌اند.'}]},raw:{content:'library lore'},sources:{lore:{type:'lore',collection:'library'}}}, textModels:{default:{provider:'gemini',model:'gemini-2.5-flash'}}, voiceModels:{default:{provider:'browser',language:'en-GB',enabled:false}}, settings:{enabled:true} });
-  assert.equal(harry.identity.systemInstructions,'stay in character'); assert.equal(hermione.textModels.default.provider,'gemini'); hermione.knowledge.raw.content='changed'; assert.equal(harry.knowledge.raw.content,''); assert.notEqual(harry.avatar.source,hermione.avatar.source); assert.notEqual(harry.identity.id,hermione.identity.id);
+  const hermione = normalizeCharacter({ id:'hermione', name:'Hermione', displayName:'هرماینی', description:'smart', role:'student', personality:{description:'precise'}, greeting:'سلام', systemInstructions:'be precise', avatar:{type:'portrait',source:'hermione.png'}, knowledge:{faq:{entries:[{keywords:['کتاب'],response:'کتاب‌ها عالی‌اند.'}]},raw:{content:'library lore'},sources:{lore:{type:'lore',collection:'library'}}}, textModels:{primary:{provider:'openrouter',model:'minimax/minimax-m2.7:free'},secondary:{provider:'huggingface',model:'Qwen/Qwen3.8-27B:fastest'}}, voiceModels:{primary:{provider:'openrouter',model:'minimax/minimax-m2.7:free'},secondary:{provider:'huggingface',model:'Qwen/Qwen3.8-27B:fastest'},output:{provider:'browser',language:'en-GB',enabled:false}}, settings:{enabled:true} });
+  assert.equal(harry.identity.systemInstructions,'stay in character');
+  assert.equal(hermione.textModels.primary.provider,'openrouter');
+  assert.equal(hermione.voiceModels.output.provider,'browser');
+  hermione.knowledge.raw.content='changed';
+  assert.equal(harry.knowledge.raw.content,'');
+  assert.notEqual(harry.avatar.source,hermione.avatar.source);
+  assert.notEqual(harry.identity.id,hermione.identity.id);
 });
 
 test('character identity data stays independent after normalization', () => {

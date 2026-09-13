@@ -1,5 +1,7 @@
 import { Character, Message } from '../types';
 
+export type ChatMode = 'text' | 'voice';
+
 export interface ChatResponse {
   response: string;
 }
@@ -21,14 +23,14 @@ export class ApiService {
   }
 
   static async getModels(): Promise<never[]> {
-    // Model/provider selection is intentionally server-side after Phase 3.
     return [];
   }
 
   static async sendMessage(
     message: string,
     characterId: string,
-    history: Message[] = []
+    history: Message[] = [],
+    mode: ChatMode = 'text'
   ): Promise<ChatResponse> {
     const response = await fetch('/api/chat', {
       method: 'POST',
@@ -37,6 +39,7 @@ export class ApiService {
         message,
         characterId,
         history: history.slice(-12),
+        mode,
       }),
     });
 

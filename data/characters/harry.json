@@ -21,8 +21,15 @@
     ],
     "animationSpeed": "normal"
   },
-  "knowledge": {"faq":{"source":"shared"},"raw":{"content":""},"sources":{}},
-  "textModels": {"default":{"provider":"local","model":"faq-keyword-v1"}},
-  "voiceModels": {"default":{"provider":"browser","language":"fa-IR","enabled":true,"speechRate":1,"pitch":1.1,"volume":1,"voiceName":null}},
+  "knowledge": {"faq":{"source":"character-local","entries":[{"keywords":["سلام","hello"],"response":"سلام! خوشحالم که اینجایی. چه چیزی می‌خوای درباره دنیای جادو یا خودم بدونی؟"},{"keywords":["هاگوارتز","hogwarts"],"response":"هاگوارتز برای من فقط یک مدرسه نیست؛ بیشتر شبیه خانه‌ای است که بهترین دوستم را در آن پیدا کردم."},{"keywords":["کوئیدیچ","quidditch"],"response":"کوئیدیچ یکی از هیجان‌انگیزترین بخش‌های زندگی من در هاگوارتز است."}]},"raw":{"content":"این دانش محلی فقط متعلق به شخصیت Harry است و به شخصیت‌های دیگر وابسته نیست."},"sources":{}},
+  "textModels": {
+    "primary":{"provider":"openrouter","model":"minimax/minimax-m2.7:free","enabled":true},
+    "secondary":{"provider":"huggingface","model":"Qwen/Qwen3.8-27B:fastest","enabled":true}
+  },
+  "voiceModels": {
+    "primary":{"provider":"openrouter","model":"minimax/minimax-m2.7:free","enabled":true},
+    "secondary":{"provider":"huggingface","model":"Qwen/Qwen3.8-27B:fastest","enabled":true},
+    "output":{"provider":"browser","language":"fa-IR","enabled":true,"speechRate":1,"pitch":1.1,"volume":1,"voiceName":null}
+  },
   "settings": {"enabled":true,"source":"builtin"}
 }

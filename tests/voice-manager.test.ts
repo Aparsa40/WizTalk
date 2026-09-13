@@ -22,9 +22,14 @@ function character(provider: 'browser' | 'external' = 'browser'): Character {
     },
     avatar: { type: 'portrait', source: '/avatar.png' },
     knowledge: { faq: {}, raw: { content: '' }, sources: {} },
-    textModels: { default: { provider: 'local', model: 'faq-keyword-v1' } },
+    textModels: {
+      primary: { provider: 'local', model: 'faq-keyword-v1' },
+      secondary: { provider: 'local', model: 'faq-keyword-v1' },
+    },
     voiceModels: {
-      default: {
+      primary: { provider: 'local', model: 'voice-chat-test' },
+      secondary: { provider: 'local', model: 'voice-chat-fallback-test' },
+      output: {
         provider,
         language: 'fa-IR',
         enabled: true,
@@ -82,7 +87,7 @@ test('Voice Manager returns a text-only result when voice is disabled', async ()
     }),
   ]);
   const disabled = character('external');
-  disabled.voiceModels.default.enabled = false;
+  disabled.voiceModels.output.enabled = false;
 
   const result = await manager.speak('سلام', disabled);
 

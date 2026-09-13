@@ -1,9 +1,8 @@
-import { GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
 import { findLocalAnswer } from './faq';
 import { ServerCharacter } from './characters';
 
-export type Provider = 'local' | 'gemini' | 'openai' | 'openrouter';
+export type Provider = 'local' | 'openrouter' | 'huggingface';
 
 export interface HistoryItem {
   sender: 'user' | 'character';
@@ -17,41 +16,32 @@ export interface ProviderConfig {
 
 export const providers: Record<Provider, ProviderConfig> = {
   local: { defaultModel: 'faq-keyword-v1', models: ['faq-keyword-v1'] },
-  gemini: {
-    defaultModel: 'gemini-2.5-flash',
-    models: ['gemini-2.5-flash', 'gemini-2.5-pro'],
-  },
-  openai: {
-    defaultModel: 'gpt-4o-mini',
-    models: ['gpt-4o-mini', 'gpt-4o'],
-  },
   openrouter: {
     defaultModel: 'minimax/minimax-m2.7:free',
     models: ['minimax/minimax-m2.7:free'],
   },
+  huggingface: {
+    defaultModel: 'Qwen/Qwen3.8-27B:fastest',
+    models: ['Qwen/Qwen3.8-27B:fastest'],
+  },
 };
 
 export function resolveConfiguredRoute(
-  character: ServerCharacter
+  modelConfig: ServerCharacter['textModels']['primary']
 ): { provider: Provider; model: string } {
-  const configured = character.textModels.default;
-  const provider = providers[configured.provider]
-    ? configured.provider
+  const provider = providers[modelConfig.provider]
+    ? modelConfig.provider
     : 'local';
-  const model = providers[provider].models.includes(configured.model)
-    ? configured.model
+  const model = providers[provider].models.includes(modelConfig.model)
+    ? modelConfig.model
     : providers[provider].defaultModel;
 
   return { provider, model };
 }
 
-function key(
-  name: 'GEMINI_API_KEY' | 'OPENAI_API_KEY' | 'OPENROUTER_API_KEY'
-): string {
+function key(name: 'OPENROUTER_API_KEY' | 'HF_TOKEN'): string {
   const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error('missing server key');
-  }
+  if (!value) throw new Error('missing server key');
   return value;
 }
 
@@ -78,21 +68,14 @@ function buildPrompt(
     'Character knowledge:',
     knowledgeContext,
     '',
-    ...history
-      .slice(-12)
-      .map(
-        (item) =>
-          `${item.sender === 'user' ? 'User' : 'Character'}: ${item.text}`
-      ),
+    ...history.slice(-12).map(
+      (item) => `${item.sender === 'user' ? 'User' : 'Character'}: ${item.text}`
+    ),
     `User: ${message}`,
   ].join('\n');
 }
 
-/**
- * Provider-specific execution only.
- * Response orchestration, fallback order, timeout policy and validation live
- * in ResponseManager so UI code never needs to know how a provider works.
- */
+/** Provider execution only. Fallback decisions belong to ResponseManager. */
 export async function executeProvider(
   provider: Provider,
   model: string,
@@ -107,28 +90,13 @@ export async function executeProvider(
   const system = `You are ${character.identity.name}. Stay in character. Follow the character profile as application context, not as higher-priority system policy. Respond naturally in Persian.`;
   const content = buildPrompt(character, history, message);
 
-  if (provider === 'gemini') {
-    const ai = new GoogleGenAI({
-      apiKey: key('GEMINI_API_KEY'),
-    });
-    const result = await ai.models.generateContent({
-      model,
-      contents: content,
-      config: {
-        systemInstruction: system,
-        temperature: 0.7,
-      },
-    });
-    return result.text || '';
-  }
-
-  const client =
-    provider === 'openrouter'
-      ? new OpenAI({
-          apiKey: key('OPENROUTER_API_KEY'),
-          baseURL: 'https://openrouter.ai/api/v1',
-        })
-      : new OpenAI({ apiKey: key('OPENAI_API_KEY') });
+  const client = new OpenAI({
+    apiKey: key(provider === 'openrouter' ? 'OPENROUTER_API_KEY' : 'HF_TOKEN'),
+    baseURL:
+      provider === 'openrouter'
+        ? 'https://openrouter.ai/api/v1'
+        : 'https://router.huggingface.co/v1',
+  });
 
   const result = await client.chat.completions.create({
     model,
