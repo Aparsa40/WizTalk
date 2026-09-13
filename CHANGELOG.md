@@ -4,7 +4,7 @@ All notable changes to WizTalk are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - Voice Model Stack v1
+## [Unreleased] - Post-v2 Voice and Avatar Stack
 
 ### Added
 
@@ -14,14 +14,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 - Added server-side `/api/tts` endpoint for model-backed speech output.
 - Added OpenRouter Fish Audio `fish-audio/s2.1-pro-free:free` as the current free TTS engine.
 - Added external-audio playback in `VoiceManager` with browser TTS fallback.
-- Added `HUGGING_FACE_TOKEN` environment variable documentation while retaining `HF_TOKEN` compatibility.
+- Added independent `avatar.assets` and `backgrounds.assets` collections for Characters.
+- Added separate Avatar and Background selectors in Character Settings.
+- Added independent per-Character persistence and rendering for Avatar and Background selections.
 
 ### Changed
 
-- Harry's `voiceModels` now explicitly contains the OpenRouter primary and Hugging Face secondary response routes.
+- Harry's `voiceModels` explicitly contains the OpenRouter primary and Hugging Face secondary response routes.
 - Harry's TTS output provider is now `external` instead of browser-only.
-- Voice documentation now distinguishes Voice Chat response models from the final TTS engine.
-- README now reflects the live model-backed voice pipeline.
+- Voice documentation distinguishes Voice Chat response models from the final TTS engine.
+- Harry's Avatar and Background configuration no longer uses coupled preset pairs.
+- Legacy avatar/background preset fields remain supported through schema normalization/compatibility behavior.
+- Documentation now records the post-v2 live voice stack and independent Avatar/Background architecture.
 
 ### Preserved
 
@@ -29,13 +33,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 - Text responses remain visible even when TTS fails.
 - Browser Speech Synthesis remains the final voice-output fallback.
 - Provider credentials remain server-side.
+- The current stack does not falsely identify MiniMax/Qwen text response models as end-to-end speech-to-speech models.
 
 ### Known Limitations
 
 - Browser Speech Recognition support varies by browser and platform.
 - The current microphone input is not yet routed through a dedicated server-side transcription model.
+- The current Voice Chat response path is text response generation followed by TTS, not end-to-end speech-to-speech.
 - External TTS currently provides timing-based avatar events rather than true phoneme/viseme data.
 - The free TTS model is intended for development/prototyping and does not provide production availability guarantees.
+- Production VRM/Live2D/3D Avatar rendering remains future work; the current independent Avatar/Background architecture is renderer-neutral.
 
 ## [2.0.0] - 2026-09-12
 
@@ -105,7 +112,7 @@ Voice
 
 ### Known Limitations at v2.0.0
 
-- Built-in Characters currently default to the local FAQ route; cloud AI adapters exist but are not yet the product's default live model experience.
+- Built-in Characters defaulted to the local FAQ route at the v2.0.0 baseline; post-v2 work now activates real model-backed routing for Harry.
 - Persistence is browser-local; there is no database, account system, or cross-device synchronization.
 - Avatar abstraction is ready for richer renderers, but production Live2D/3D/video renderers are future work.
 - Lip-sync currently provides coordination/amplitude foundations rather than full phoneme/viseme analysis.
@@ -175,9 +182,11 @@ Initial stable release with:
 - **MINOR**: backward-compatible features.
 - **PATCH**: fixes, security patches, and maintenance.
 
-Current baseline: **v2.0.0**
+Current stable release baseline: **v2.0.0**
 
 Previous releases: **v1.1.0**, **v1.0.0**
+
+Post-v2 development currently includes the live Harry voice/model stack and independent Avatar/Background selection; these remain unreleased changes until a new release version is explicitly cut.
 
 ## Post-v2 Planned Phases
 

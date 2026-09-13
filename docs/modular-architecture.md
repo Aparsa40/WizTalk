@@ -3,11 +3,12 @@
 ## نمای کلی
 
 این نسخه WizTalk معماری کاملاً مدولار برای:
-- **سیستم Avatar**: رندرر 2D متحرک مستقل برای هر شخصیت
-- **سیستم Voice**: تنظیمات صوتی مستقل برای هر شخصیت
-- **معماری Character**: جدایی شرایط تنظیمات per-character
-- **Lip-Sync**: آماده‌سازی معماری برای تزامن لب‌های آینده
-- **توسعه‌پذیری**: ساختار آماده برای رندررهای آینده و مدل‌های صوتی
+- **سیستم Avatar**: رندرر مستقل و renderer-neutral برای هر شخصیت
+- **سیستم Background**: دارایی‌های پس‌زمینه مستقل از Avatar برای هر شخصیت
+- **سیستم Voice**: تنظیمات صوتی و مسیر پاسخ مستقل برای هر شخصیت
+- **معماری Character**: جدایی کامل تنظیمات per-character
+- **Lip-Sync**: آماده‌سازی معماری برای هماهنگی صوت و Avatar
+- **توسعه‌پذیری**: ساختار آماده برای رندررهای SVG، Live2D، VRM/3D و مدل‌های صوتی
 
 ## معماری
 
@@ -15,133 +16,109 @@
 
 #### فایل‌ها:
 - `src/services/avatar-controller.ts` - کنترلر انیمیشن Avatar
-- `src/services/avatar-renderer.tsx` - رندرر 2D متحرک
-- `src/styles/avatar-animations.css` - انیمیشن‌های Tailwind
+- `src/services/avatar-renderer.tsx` - رندرر فعلی 2D
+- `src/styles/avatar-animations.css` - انیمیشن‌های Avatar
 
 #### مشخصات:
 - **حالت‌ها**: idle, listening, thinking, speaking, error
-- **انیمیشن‌های حالت**: fade-subtle, pulse-listening, bounce-thinking, speak, voice-wave, shake-error
-- **دارایی‌های مستقل**: هر شخصیت می‌تواند darayi‌های مختلفی داشته باشد
-- **تقسیم Rendering**: AvatarRenderer می‌تواند با SVG، Canvas، Live2D یا 3D جایگزین شود
+- **دارایی‌های مستقل**: هر Character می‌تواند چند Avatar asset داشته باشد
+- **انتخاب مستقل**: Avatar انتخاب‌شده به Background انتخاب‌شده وابسته نیست
+- **Renderer abstraction**: AvatarRenderer می‌تواند با SVG، Canvas، Live2D یا VRM/3D جایگزین شود
 
-#### استفاده:
-```typescript
-import { createAvatarController } from './avatar-controller';
-import AnimatedAvatarRenderer from './avatar-renderer';
+### 2. سیستم Background
 
-const controller = createAvatarController();
-controller.setState('speaking');
-controller.subscribeToVoiceEvents((event) => {
-  console.log('Voice event:', event);
-});
-```
+Background بخشی مستقل از Character است و دیگر به Avatar preset خاصی قفل نیست.
 
-### 2. سیستم Voice
+ساختار داده:
 
-#### فایل‌ها:
-- `src/services/voice-advanced.ts` - سرویس صوت پیشرفته
-
-#### مشخصات‌های مستقل شخصیت:
-```typescript
-interface VoiceConfig {
-  provider: 'browser' | 'external';
-  voiceId?: string;
-  language: string;           // fa-IR برای فارسی
-  enabled: boolean;
-  speechRate?: number;        // 0.5 - 2.0
-  pitch?: number;             // 0.5 - 2.0
-  volume?: number;            // 0 - 1.0
-  voiceName?: string;
-}
-```
-
-#### استفاده:
-```typescript
-// Speech-to-Text با تنظیمات شخصیت
-const recognition = VoiceService.initSpeechToText(
-  character,
-  (text) => console.log('Recognized:', text),
-  (error) => console.error(error),
-  () => console.log('Done')
-);
-
-// Text-to-Speech با تنظیمات شخصیت
-await VoiceService.speak(
-  "سلام!",
-  character,
-  (voiceEvent) => {
-    // برای lip-sync
-    lipSyncCoordinator.processVoiceEvent(voiceEvent);
-  }
-);
-```
-
-### 3. معماری Character
-
-#### تنظیمات مستقل برای هر شخصیت:
 ```json
 {
-  "id": "harry",
-  "name": "Harry Potter",
-  "avatar": {
-    "type": "animated-2d",
-    "source": "...",
-    "speakingSource": "...",
-    "listeningSource": "...",
-    "animationSpeed": "normal"
-  },
-  "voice": {
-    "language": "fa-IR",
-    "speechRate": 1.0,
-    "pitch": 1.1,
-    "volume": 1.0
-  },
-  "ai": {
-    "provider": "local",
-    "model": "faq-keyword-v1"
+  "backgrounds": {
+    "selectedId": "hogwarts-hall",
+    "assets": [
+      {
+        "id": "hogwarts-hall",
+        "name": "Hogwarts • Great Hall",
+        "source": "/avatars/harry-hall.svg",
+        "position": "center",
+        "size": "cover"
+      }
+    ]
   }
 }
 ```
 
-#### هر شخصیت دارای:
-- Avatar مستقل با دارایی‌های خود
-- تنظیمات صوتی منحصر به فرد
-- مدل AI خود
-- حافظه گفت‌وگو جداگانه
+Character Settings انتخاب Avatar و Background را در کنترل‌های جدا انجام می‌دهد و هر انتخاب مستقل از دیگری ذخیره می‌شود. Legacy avatar/background preset data برای سازگاری حفظ شده است.
 
-### 4. Lip-Sync Architecture
+### 3. سیستم Voice
+
+#### مشخصات:
+
+Voice Chat فعلی برای Harry از این مسیر استفاده می‌کند:
+
+```text
+Microphone
+  ↓
+Browser Speech Recognition (fa-IR)
+  ↓
+ResponseManager
+  ├─ OpenRouter MiniMax #1
+  └─ Hugging Face Qwen #2
+  ↓
+Text Response
+  ↓
+VoiceManager
+  ↓
+OpenRouter Fish Audio TTS
+  ↓
+Audio → Avatar events
+```
+
+این مسیر **end-to-end speech-to-speech نیست**؛ مدل‌های MiniMax و Qwen در این پیکربندی مدل‌های پاسخ متنی هستند و Fish Audio مرحله TTS است. این تفکیک عمداً در معماری و مستندات حفظ شده تا مدل‌های متنی به‌اشتباه به‌عنوان S2S معرفی نشوند.
+
+### 4. معماری Character
+
+هر Character دارای مرز مستقل برای:
+- Identity / Personality
+- Avatar assets و selected Avatar
+- Background assets و selected Background
+- Text model/provider route
+- Voice response model/provider route
+- TTS/output settings
+- Knowledge
+- Conversation/memory context
+- User-facing settings
+
+تغییر Avatar یا Background یک Character نباید تنظیمات Character دیگر را تغییر دهد.
+
+### 5. Lip-Sync Architecture
 
 #### فایل:
-- `src/services/lipsync-coordinator.ts` - مختص کننده lip-sync
+- `src/services/lipsync-coordinator.ts` - هماهنگ‌کننده lip-sync
 
 #### مشخصات:
 - **Mouth Shapes**: closed, open-small, open-medium, open-large, smile, pursed
-- **Amplitude-based Prediction**: پیش‌بینی شکل دهان از نوسان صوتی
-- **Phoneme Support**: برای بهبودی‌های آینده
-- **SVG Generation**: تولید SVG برای رندررهای 2D/3D
+- **Timing/Amplitude foundation** برای هماهنگی فعلی
+- **Phoneme/Viseme support** برای توسعه آینده
+- قابلیت اتصال به رندررهای 2D/Live2D/3D/VRM در آینده
 
-#### آماده‌سازی برای آینده:
-- Support برای phoneme detection
-- Integration با Live2D
-- Support برای 3D character
-- External voice provider coordination
-
-### 5. Data Layer
+### 6. Data Layer
 
 #### فایل‌های شخصیت:
 - `data/characters/harry.json`
 - `data/characters/ron.json`
 - `data/characters/hermione.json`
 
-هر فایل شامل:
-- Avatar configuration
+هر فایل می‌تواند شامل:
+- Avatar configuration/assets
+- Background configuration/assets
 - Voice configuration
 - AI configuration
 - Personality traits
 
-## تدفق کار (Data Flow)
+## Data Flow
 
-```
+```text
 User Input
     ↓
 Speech Recognition (با character language)
@@ -150,126 +127,48 @@ Chat Message (گفت‌وگو و حافظه per-character)
     ↓
 AI Response Generation
     ↓
-Speech Synthesis (با character voice settings)
+Speech Output / TTS
     ↓
 Voice Events → Lip-Sync Coordinator
     ↓
-Avatar Animation (state + lip-sync)
+Avatar Animation
     ↓
-Display
+Display with independently selected Background
 ```
 
 ## توسعه و جدایی
 
 ### Renderer Abstraction
-رندرر کنونی می‌تواند با هر implementation جایگزین شود:
+
+رندرر کنونی می‌تواند با هر implementation سازگار جایگزین شود:
+
 ```typescript
 // Current: AnimatedAvatarRenderer
 // Future: SVGAvatarRenderer
 // Future: CanvasAvatarRenderer
 // Future: Live2DAvatarRenderer
-// Future: ThreeDRenderer
+// Future: VRM/ThreeDRenderer
 ```
 
 ### Voice Provider Abstraction
-سرویس صوت می‌تواند extended شود:
-```typescript
-// Current: Browser Web Audio API
-// Future: Google Cloud TTS
-// Future: Azure Cognitive Services
-// Future: ElevenLabs API
-```
+
+Voice input/output از Character rendering جدا نگه داشته شده و providerها می‌توانند بدون تغییر ChatUI تعویض شوند.
 
 ### Character Extensibility
-شخصیت جدید اضافه کردن فقط نیاز به:
+
+اضافه کردن Character جدید باید فقط نیازمند:
 1. فایل JSON جدید در `data/characters/`
-2. تنظیمات avatar، voice، و AI
-3. بدون تغییر در core Chat، AI، یا Avatar logic
+2. تنظیمات Avatar و Background مستقل
+3. تنظیمات Voice و AI
+4. بدون تغییر در core Chat، AI، یا Avatar logic باشد
 
-## API
+## اصول مهم
 
-### AvatarAnimationController
-```typescript
-controller.setState(state: AvatarState)
-controller.getState(): AvatarState
-controller.setTransitionTiming(state, ms)
-controller.subscribe(listener): unsubscribe
-controller.subscribeToVoiceEvents(listener): unsubscribe
-controller.emitVoiceEvent(event)
-controller.getStateHistory(limit)
-controller.reset()
-```
-
-### VoiceService
-```typescript
-VoiceService.initSpeechToText(character, onResult, onError, onEnd)
-VoiceService.startListening()
-VoiceService.stopListening()
-VoiceService.speak(text, character, onVoiceEvent)
-VoiceService.stopSpeaking()
-VoiceService.pauseSpeaking()
-VoiceService.resumeSpeaking()
-VoiceService.getAvailableVoices()
-VoiceService.getPersianVoices()
-VoiceService.subscribeToVoiceEvents(listener)
-```
-
-### LipSyncCoordinator
-```typescript
-coordinator.processVoiceEvent(event)
-coordinator.setAnimationController(controller)
-coordinator.subscribe(listener): unsubscribe
-coordinator.getCurrentMouthShape()
-coordinator.getVoiceEventBuffer(limit)
-coordinator.reset()
-```
-
-## نسخه اول vs. نسخه بهتر
-
-### قبل:
-- Avatar عمومی (یک avatar برای همه)
-- Voice سراسری
-- تنظیمات ثابت
-
-### الان:
-- Avatar مستقل برای هر شخصیت
-- Voice مستقل برای هر شخصیت
-- تنظیمات کامل per-character
-- آماده‌سازی برای lip-sync
-- معماری مدولار برای رندررهای آینده
-
-## آینده
-
-### مرحله 1: بهبودی موجود
-- [ ] Live2D avatar support
-- [ ] Advanced phoneme detection
-- [ ] External TTS providers
-- [ ] Character animation presets
-
-### مرحله 2: توسعه
-- [ ] 3D character rendering
-- [ ] Real-time voice modulation
-- [ ] Multi-language UI
-- [ ] Cloud character storage
-
-### مرحله 3: ویژگی‌های پیشرفته
-- [ ] Custom avatar creation
-- [ ] Voice cloning
-- [ ] Emotion-based animation
-- [ ] Multi-character conversations
-
-## تست‌ها
-
-```bash
-npm run lint       # TypeScript/ESLint validation
-npm run build      # Production build
-npm run dev        # Development server
-```
-
-## نکات مهم
-
-1. **هر شخصیت مستقل است**: تغییر Harry تاثیری بر Ron ندارد
-2. **معماری مدولار**: رندرر یا voice provider می‌تواند بدون تغییر core تعویض شود
-3. **آماده‌سازی آینده**: Lip-sync architecture فقط منتظر phoneme detection است
-4. **حفاظت درحفظ تابع**: تمام ویژگی‌های موجود محفوظ باقی‌مانده‌اند
-5. **فارسی-اول**: تمام ویژگی‌ها فارسی پشتیبانی می‌کنند
+1. **هر Character مستقل است**: تغییر Harry نباید روی Ron یا Hermione اثر بگذارد.
+2. **Avatar و Background مستقل‌اند**: هیچ preset اجباری بین آن‌ها وجود ندارد.
+3. **ResponseManager مالک orchestration پاسخ است** و providerها نباید fallback boundary را دور بزنند.
+4. **VoiceManager مالک orchestration صوت است** و شکست صوت نباید متن معتبر را حذف کند.
+5. **Credentials فقط server-side هستند** و نباید وارد React یا localStorage شوند.
+6. **معماری renderer-neutral است** و برای VRM/3D و Live2D آماده توسعه است.
+7. **مدل‌های متنی به‌عنوان S2S معرفی نمی‌شوند**؛ Voice Chat فعلی text-response + TTS است.
+8. **فارسی-اول**: مسیر فعلی Speech Recognition برای `fa-IR` تنظیم شده است.

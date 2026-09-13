@@ -2,7 +2,7 @@
 
 ## Baseline: v2.0.0
 
-**Status:** Stable architecture baseline — 2026-09-12
+**Status:** Stable release baseline — 2026-09-12
 
 Phase 1–8 are complete and form the initial platform foundation. New development begins from this baseline and is intentionally divided into isolated phases.
 
@@ -19,9 +19,15 @@ Phase 1–8 are complete and form the initial platform foundation. New developme
 
 ## Post-v2 Development Phases
 
-### Phase 9.1 — Real AI Model Activation
+### Phase 9.1 — Real AI Model Activation — Started
 
-Activate and validate real cloud-model usage while preserving the ResponseManager/provider boundaries and server-side credentials.
+Harry is now the first built-in Character with a live model-backed text and Voice Chat response stack:
+
+- OpenRouter `minimax/minimax-m2.7:free` as primary.
+- Hugging Face `Qwen/Qwen3.8-27B:fastest` as secondary.
+- OpenRouter Fish Audio `fish-audio/s2.1-pro-free:free` as the current TTS output layer.
+
+The phase remains in progress until the live model strategy is expanded and validated for the remaining built-in Characters. The current Voice Chat path is text response generation followed by TTS, not end-to-end S2S.
 
 ### Phase 9.2 — Database + Persistence
 
@@ -33,11 +39,11 @@ Introduce users, authentication, sessions, and server-side authorization so pers
 
 ### Phase 9.4 — Real Avatar / Live2D / 3D
 
-Add production-capable Avatar renderers through the existing renderer-neutral architecture.
+Add production-capable Avatar renderers through the existing renderer-neutral architecture. The current independent Avatar/Background data model is designed to support this phase without coupling Background assets to a renderer.
 
 ### Phase 9.5 — Advanced Voice + Lip-Sync
 
-Expand voice/avatar coordination toward amplitude animation and production phoneme/viseme-ready pipelines.
+Expand voice/avatar coordination toward amplitude animation and production phoneme/viseme-ready pipelines. A dedicated end-to-end S2S model may be integrated only when an appropriate supported provider route is available.
 
 ### Phase 9.6 — Memory + Conversation History
 
@@ -66,6 +72,7 @@ Polish Chat, Avatar, Voice, Settings, accessibility, loading/error states, and r
 - Do not implement future phases early under the excuse of preparation.
 - Preserve Character isolation.
 - Preserve ResponseManager and VoiceManager ownership boundaries.
+- Keep Avatar and Background selections independent.
 - Run the relevant lint, test, and build checks.
 - Submit a Pull Request for review.
 - Merge only after explicit project-owner approval.
@@ -73,4 +80,4 @@ Polish Chat, Avatar, Voice, Settings, accessibility, loading/error states, and r
 
 ## Product Direction
 
-The long-term goal is a multi-character Persian-first AI platform in which each Character behaves as an independent hybrid chatbot with its own identity, Avatar, text/voice stack, knowledge, settings, runtime state, history, and memory, while shared infrastructure remains internally reusable and safely isolated.
+The long-term goal is a multi-character Persian-first AI platform in which each Character behaves as an independent hybrid chatbot with its own identity, Avatar, Background, text/voice stack, knowledge, settings, runtime state, history, and memory, while shared infrastructure remains internally reusable and safely isolated.
