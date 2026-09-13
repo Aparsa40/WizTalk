@@ -11,6 +11,7 @@ dotenv.config();
 const app = express();
 app.use(express.json({ limit: '64kb' }));
 const PORT = Number(process.env.PORT) || 3000;
+const OPENROUTER_TTS_MODEL = 'fish-audio/s2.1-pro-free:free';
 
 const chatRateLimiter = rateLimit({
   windowMs: 60000,
@@ -18,6 +19,14 @@ const chatRateLimiter = rateLimit({
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: { error: 'تعداد درخواست‌ها بیش از حد مجاز است. لطفاً کمی بعد دوباره تلاش کنید.' },
+});
+
+const ttsRateLimiter = rateLimit({
+  windowMs: 60000,
+  limit: 20,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'تعداد درخواست‌های صوتی بیش از حد مجاز است. لطفاً کمی بعد دوباره تلاش کنید.' },
 });
 
 const staticRateLimiter = rateLimit({
@@ -83,6 +92,48 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
   } catch (error) {
     console.error('Response manager error', error);
     res.status(502).json({ error: 'سرویس پاسخ‌گو در دسترس نیست. لطفاً دوباره تلاش کنید.' });
+  }
+});
+
+app.post('/api/tts', ttsRateLimiter, async (req, res) => {
+  const { text } = req.body as { text?: unknown };
+
+  if (typeof text !== 'string' || !text.trim()) {
+    return res.status(400).json({ error: 'متن صوتی نمی‌تواند خالی باشد.' });
+  }
+
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (!apiKey) {
+    return res.status(503).json({ error: 'سرویس تبدیل متن به گفتار پیکربندی نشده است.' });
+  }
+
+  try {
+    const upstream = await fetch('https://openrouter.ai/api/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_TTS_MODEL,
+        input: text.trim().slice(0, 15000),
+        response_format: 'mp3',
+      }),
+    });
+
+    if (!upstream.ok) {
+      const detail = await upstream.text();
+      console.error('OpenRouter TTS error', upstream.status, detail.slice(0, 500));
+      return res.status(502).json({ error: 'تولید صدای پاسخ ناموفق بود.' });
+    }
+
+    const audio = Buffer.from(await upstream.arrayBuffer());
+    res.setHeader('Content-Type', upstream.headers.get('content-type') || 'audio/mpeg');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.send(audio);
+  } catch (error) {
+    console.error('TTS request error', error);
+    return res.status(502).json({ error: 'ارتباط با سرویس صوتی ناموفق بود.' });
   }
 });
 

@@ -4,6 +4,39 @@ All notable changes to WizTalk are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - Voice Model Stack v1
+
+### Added
+
+- Activated Harry's live response-model pair for both text and Voice Chat modes.
+- OpenRouter primary response model: `minimax/minimax-m2.7:free`.
+- Hugging Face secondary response model: `Qwen/Qwen3.8-27B:fastest`.
+- Added server-side `/api/tts` endpoint for model-backed speech output.
+- Added OpenRouter Fish Audio `fish-audio/s2.1-pro-free:free` as the current free TTS engine.
+- Added external-audio playback in `VoiceManager` with browser TTS fallback.
+- Added `HUGGING_FACE_TOKEN` environment variable documentation while retaining `HF_TOKEN` compatibility.
+
+### Changed
+
+- Harry's `voiceModels` now explicitly contains the OpenRouter primary and Hugging Face secondary response routes.
+- Harry's TTS output provider is now `external` instead of browser-only.
+- Voice documentation now distinguishes Voice Chat response models from the final TTS engine.
+- README now reflects the live model-backed voice pipeline.
+
+### Preserved
+
+- Browser `fa-IR` Speech Recognition remains the current microphone/STT layer.
+- Text responses remain visible even when TTS fails.
+- Browser Speech Synthesis remains the final voice-output fallback.
+- Provider credentials remain server-side.
+
+### Known Limitations
+
+- Browser Speech Recognition support varies by browser and platform.
+- The current microphone input is not yet routed through a dedicated server-side transcription model.
+- External TTS currently provides timing-based avatar events rather than true phoneme/viseme data.
+- The free TTS model is intended for development/prototyping and does not provide production availability guarantees.
+
 ## [2.0.0] - 2026-09-12
 
 ### Added
@@ -142,13 +175,13 @@ Initial stable release with:
 - **MINOR**: backward-compatible features.
 - **PATCH**: fixes, security patches, and maintenance.
 
-Current: **v2.0.0**
+Current baseline: **v2.0.0**
 
 Previous releases: **v1.1.0**, **v1.0.0**
 
 ## Post-v2 Planned Phases
 
-1. Real AI Model Activation
+1. Expand real AI Model Activation to all built-in Characters
 2. Database + Persistence
 3. Authentication + User Accounts
 4. Memory + Conversation History

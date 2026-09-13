@@ -40,7 +40,13 @@ export function resolveConfiguredRoute(
 }
 
 function key(name: 'OPENROUTER_API_KEY' | 'HF_TOKEN'): string {
-  const value = process.env[name]?.trim();
+  const names = name === 'HF_TOKEN'
+    ? ['HF_TOKEN', 'HUGGING_FACE_TOKEN']
+    : [name];
+  const value = names
+    .map((candidate) => process.env[candidate]?.trim())
+    .find(Boolean);
+
   if (!value) throw new Error('missing server key');
   return value;
 }

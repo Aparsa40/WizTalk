@@ -18,10 +18,13 @@ export interface VoiceResult {
 
 /**
  * TTS execution only. Voice response-model fallback is owned by ResponseManager.
- * This service receives the final validated text and renders it as speech.
+ * The primary external TTS route is server-side OpenRouter; browser TTS remains
+ * the final client-side fallback so a provider outage never removes the text reply.
  */
 export class VoiceManager {
   private readonly executors: VoiceExecutor[];
+  private currentAudio: HTMLAudioElement | null = null;
+  private currentAudioUrl: string | null = null;
 
   constructor(executors: VoiceExecutor[] = []) {
     this.executors = executors;
@@ -40,10 +43,13 @@ export class VoiceManager {
     }
 
     const configured = this.executors.filter((executor) => executor.provider === output.provider);
+    const external = output.provider === 'external'
+      ? [this.externalExecutor()]
+      : [];
     const browser = this.executors.filter((executor) => executor.provider === 'browser');
     const ordered = output.provider === 'browser'
       ? (browser.length ? browser : [this.browserExecutor()])
-      : [...configured, this.browserExecutor()];
+      : [...configured, ...external, this.browserExecutor()];
 
     for (const executor of ordered) {
       try {
@@ -58,6 +64,7 @@ export class VoiceManager {
   }
 
   stop(): void {
+    this.stopExternalAudio();
     VoiceService.stopSpeaking();
   }
 
@@ -84,6 +91,99 @@ export class VoiceManager {
 
   isSpeechRecognitionSupported(): boolean {
     return VoiceService.isSpeechRecognitionSupported();
+  }
+
+  private externalExecutor(): VoiceExecutor {
+    return {
+      provider: 'external',
+      speak: (text, character, onEvent) => this.speakExternal(text, character, onEvent),
+    };
+  }
+
+  private async speakExternal(
+    text: string,
+    character: Character,
+    onVoiceEvent?: VoiceEventListener
+  ): Promise<void> {
+    this.stopExternalAudio();
+
+    const response = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`TTS endpoint returned ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const audioUrl = URL.createObjectURL(blob);
+    const audio = new Audio(audioUrl);
+    audio.playbackRate = Math.min(2, Math.max(0.5, character.voiceModels.output.speechRate ?? character.voiceModels.output.rate ?? 1));
+    audio.volume = Math.min(1, Math.max(0, character.voiceModels.output.volume ?? 1));
+
+    this.currentAudio = audio;
+    this.currentAudioUrl = audioUrl;
+
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        onVoiceEvent?.({
+          type: 'end',
+          characterId: character.identity.id,
+          timestamp: Date.now(),
+          source: 'external',
+          measured: false,
+          amplitude: 0,
+        });
+        resolve();
+      };
+
+      audio.onplay = () => {
+        onVoiceEvent?.({
+          type: 'start',
+          characterId: character.identity.id,
+          timestamp: Date.now(),
+          source: 'external',
+          measured: false,
+          amplitude: 0.55,
+        });
+      };
+      audio.onended = finish;
+      audio.onerror = () => {
+        if (settled) return;
+        settled = true;
+        reject(new Error('external TTS audio playback failed'));
+      };
+
+      void audio.play().catch((error) => {
+        if (settled) return;
+        settled = true;
+        reject(error);
+      });
+    });
+
+    this.releaseExternalAudio();
+  }
+
+  private stopExternalAudio(): void {
+    this.currentAudio?.pause();
+    if (this.currentAudio) this.currentAudio.currentTime = 0;
+    this.releaseExternalAudio();
+  }
+
+  private releaseExternalAudio(): void {
+    this.currentAudio?.removeAttribute('src');
+    this.currentAudio?.load();
+    this.currentAudio = null;
+
+    if (this.currentAudioUrl) {
+      URL.revokeObjectURL(this.currentAudioUrl);
+      this.currentAudioUrl = null;
+    }
   }
 
   private browserExecutor(): VoiceExecutor {
