@@ -21,6 +21,7 @@ function character(provider: 'browser' | 'external' = 'browser'): Character {
       systemInstructions: 'Test instructions',
     },
     avatar: { type: 'portrait', source: '/avatar.png' },
+    backgrounds: { selectedId: '', assets: [] },
     knowledge: { faq: {}, raw: { content: '' }, sources: {} },
     textModels: {
       primary: { provider: 'local', model: 'faq-keyword-v1' },
