@@ -36,11 +36,20 @@ function saveCharacterSettings(settings: Record<string, Partial<CharacterUserSet
 function applyUserSettings(character: Character): Character {
   const override = readCharacterSettings()[character.identity.id];
   if (!override) return character;
+
   return {
     ...character,
     identity: { ...character.identity, ...(override.identity ?? {}) },
     avatar: { ...character.avatar, ...(override.avatar ?? {}) },
-    backgrounds: { ...character.backgrounds, ...(override.backgrounds ?? {}) },
+    // Background assets are owned by the Character's built-in/custom definition.
+    // Only the user's selected background is persisted as an override. This is
+    // important for built-in characters: an older localStorage entry may contain
+    // the two temporary SVG backgrounds, but it must never replace the current
+    // asset catalog declared by data/characters/<character>.json.
+    backgrounds: {
+      ...character.backgrounds,
+      selectedId: override.backgrounds?.selectedId ?? character.backgrounds.selectedId,
+    },
     voiceModels: {
       ...character.voiceModels,
       ...(override.voiceModels ?? {}),
