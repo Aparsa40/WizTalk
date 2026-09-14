@@ -21,10 +21,12 @@
     "animationSpeed": "normal"
   },
   "backgrounds": {
-    "selectedId": "hogwarts-bedroom",
+    "selectedId": "harry-room",
     "assets": [
-      {"id":"hogwarts-bedroom","name":"Hogwarts • Wizarding Bedroom","source":"/avatars/harry-bedroom.svg","position":"center","size":"cover"},
-      {"id":"hogwarts-hall","name":"Hogwarts • Great Hall","source":"/avatars/harry-hall.svg","position":"center","size":"cover"}
+      {"id":"harry-room","name":"Harry • Room","source":"/Background/hary-Room.png","position":"center","size":"cover"},
+      {"id":"hogwarts","name":"Hogwarts","source":"/Background/hogwarts.jfif","position":"center","size":"cover"},
+      {"id":"dumbledore-room","name":"Dumbledore • Room","source":"/Background/dambeldor-room.jpg","position":"center","size":"cover"},
+      {"id":"wizarding-bedroom","name":"Wizarding • Bedroom","source":"/Background/30 Cool Nerd Bedroom Ideas to Show Off Your Fandom.jpg","position":"center","size":"cover"}
     ]
   },
   "knowledge": {"faq":{"source":"character-local","entries":[{"keywords":["سلام","hello"],"response":"سلام! خوشحالم که اینجایی. چه چیزی می‌خوای درباره دنیای جادو یا خودم بدونی؟"},{"keywords":["هاگوارتز","hogwarts"],"response":"هاگوارتز برای من فقط یک مدرسه نیست؛ بیشتر شبیه خانه‌ای است که بهترین دوستم را در آن پیدا کردم."},{"keywords":["کوئیدیچ","quidditch"],"response":"کوئیدیچ یکی از هیجان‌انگیزترین بخش‌های زندگی من در هاگوارتز است."}]},"raw":{"content":"این دانش محلی فقط متعلق به شخصیت Harry است و به شخصیت‌های دیگر وابسته نیست."},"sources":{}},
