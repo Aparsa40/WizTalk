@@ -9,7 +9,13 @@ import { Settings } from './components/Settings';
 
 export default function App() {
   const [characters, setCharacters] = useState<Character[]>([]);
-  const [appState, setAppState] = useState<AppState>(() => MemoryService.getAppState());
+  // Always open on the character showcase. The selected character is a
+  // session choice, not a reason to bypass the product's landing screen after
+  // a browser refresh.
+  const [appState, setAppState] = useState<AppState>(() => ({
+    ...MemoryService.getAppState(),
+    selectedCharacterId: null,
+  }));
   const [showSettings, setShowSettings] = useState(false);
   const [showCharacterSettings, setShowCharacterSettings] = useState(false);
   const [loading, setLoading] = useState(true);
