@@ -56,7 +56,19 @@ test('Phase 8 acceptance: server character lookup preserves ID isolation', async
 });
 
 test('Phase 8 acceptance: legacy character data still normalizes into all required boundaries', () => {
-  const character = makeCharacter({ ai: { provider: 'local', model: 'faq-keyword-v1' }, voice: { provider: 'external', language: 'fa-IR', enabled: true } });
+  const character = normalizeCharacter({
+    id: 'integration-character',
+    name: 'Integration Character',
+    displayName: 'شخصیت تست',
+    description: 'integration test character',
+    role: 'assistant',
+    personality: { description: 'helpful', behavior: 'clear', tone: 'friendly', communicationStyle: 'concise' },
+    greeting: 'سلام',
+    systemInstructions: 'stay in character',
+    avatar: { type: 'portrait', source: '/avatars/test.png' },
+    ai: { provider: 'local', model: 'faq-keyword-v1' },
+    voice: { provider: 'external', language: 'fa-IR', enabled: true },
+  });
   assert.equal(character.identity.id, 'integration-character');
   assert.equal(character.avatar.type, 'portrait');
   assert.equal(character.textModels.primary.provider, 'local');
