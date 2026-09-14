@@ -10,11 +10,27 @@ import { LipSyncCoordinator } from '../services/lipsync-coordinator';
 
 interface ChatUIProps { character: Character; onBack: () => void; onOpenSettings: () => void; }
 
+type SpeechResultEvent = {
+  resultIndex?: number;
+  results?: ArrayLike<ArrayLike<{ transcript?: string; isFinal?: boolean }>>;
+};
+
+type SpeechErrorEvent = { error?: string };
+
+type RecognitionController = {
+  continuous?: boolean;
+  interimResults?: boolean;
+  onresult: ((event: unknown) => void) | null;
+  onerror: ((event: SpeechErrorEvent) => void) | null;
+  onend: (() => void) | null;
+};
+
 export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [liveVoiceText, setLiveVoiceText] = useState('');
   const [isReadingAll, setIsReadingAll] = useState(false);
   const [avatarState, setAvatarState] = useState<AvatarState>('idle');
   const [readingMessageId, setReadingMessageId] = useState<string | null>(null);
@@ -23,11 +39,14 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
   const timer = useRef<number | null>(null);
   const recognitionFinalText = useRef('');
   const recognitionActive = useRef(false);
+  const voiceSendTimer = useRef<number | null>(null);
+  const messagesRef = useRef<Message[]>([]);
   const readSession = useRef(0);
   const dragState = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
   const [bubbleOffset, setBubbleOffset] = useState({ x: 0, y: 0 });
 
   useEffect(() => controller.current.subscribe(setAvatarState), []);
+
   useEffect(() => {
     setBubbleOffset({ x: 0, y: 0 });
     const coordinator = new LipSyncCoordinator(character.identity.id);
@@ -38,17 +57,19 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
 
   useEffect(() => {
     const saved = MemoryService.getMessages(character.identity.id);
-    if (saved.length) setMessages(saved);
-    else {
-      const greeting: Message = { id: crypto.randomUUID(), sender: 'character', text: character.identity.greeting, timestamp: Date.now() };
-      MemoryService.saveMessage(character.identity.id, greeting);
-      setMessages([greeting]);
-    }
+    const initial = saved.length
+      ? saved
+      : [{ id: crypto.randomUUID(), sender: 'character' as const, text: character.identity.greeting, timestamp: Date.now() }];
+    if (!saved.length) MemoryService.saveMessage(character.identity.id, initial[0]);
+    messagesRef.current = initial;
+    setMessages(initial);
+
     return () => {
       recognitionActive.current = false;
       voiceManager.abortListening();
       voiceManager.stop();
       if (timer.current !== null) window.clearTimeout(timer.current);
+      if (voiceSendTimer.current !== null) window.clearTimeout(voiceSendTimer.current);
       lipSync.current?.reset();
     };
   }, [character.identity.id, character.identity.greeting]);
@@ -66,38 +87,64 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
 
   const submitMessage = async (rawText: string, mode: ChatMode) => {
     const text = rawText.trim();
-    if (!text || isTyping) return;
+    if (!text || isTyping) return false;
+
     const user: Message = { id: crypto.randomUUID(), sender: 'user', text, timestamp: Date.now() };
-    const next = [...messages, user];
+    const next = [...messagesRef.current, user];
+    messagesRef.current = next;
     setMessages(next);
     MemoryService.saveMessage(character.identity.id, user);
     setInput('');
+    setLiveVoiceText('');
+    recognitionFinalText.current = '';
     setIsTyping(true);
     controller.current.setState('thinking');
+
     try {
       const result = await ApiService.sendMessage(text, character.identity.id, next, mode);
       const reply: Message = { id: crypto.randomUUID(), sender: 'character', text: result.response, timestamp: Date.now() };
-      setMessages((current) => [...current, reply]);
+      const withReply = [...messagesRef.current, reply];
+      messagesRef.current = withReply;
+      setMessages(withReply);
       MemoryService.saveMessage(character.identity.id, reply);
       await speak(reply.text, reply.id);
+      return true;
     } catch (error) {
       console.error('Chat request failed', error);
       controller.current.setState('idle');
+      return false;
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const scheduleVoiceSend = () => {
+    if (voiceSendTimer.current !== null) window.clearTimeout(voiceSendTimer.current);
+    voiceSendTimer.current = window.setTimeout(() => {
+      voiceSendTimer.current = null;
+      const finalText = recognitionFinalText.current.trim();
+      if (!recognitionActive.current || !finalText) return;
+      if (isTyping) {
+        scheduleVoiceSend();
+        return;
+      }
+      void submitMessage(finalText, 'text');
+    }, 1100);
   };
 
   const handleSend = async () => { await submitMessage(input, 'text'); };
 
   const finishListening = () => {
     recognitionActive.current = false;
+    if (voiceSendTimer.current !== null) window.clearTimeout(voiceSendTimer.current);
+    voiceSendTimer.current = null;
     voiceManager.stopListening();
     setIsListening(false);
     controller.current.setState('idle');
+    setLiveVoiceText('');
     const finalText = recognitionFinalText.current.trim();
     recognitionFinalText.current = '';
-    if (finalText && !isTyping) setInput(finalText);
+    if (finalText && !isTyping) void submitMessage(finalText, 'text');
   };
 
   const toggleListening = async () => {
@@ -105,79 +152,114 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
       finishListening();
       return;
     }
-    if (isTyping) return;
+
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('microphone permission is not supported');
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((track) => track.stop());
+
       recognitionFinalText.current = '';
+      setLiveVoiceText('');
       recognitionActive.current = true;
       const recognition = voiceManager.initSpeechToText(
         character,
-        (text) => {
-          if (!recognitionActive.current) return;
-          recognitionFinalText.current = `${recognitionFinalText.current} ${text}`.trim();
-          setInput(recognitionFinalText.current);
-        },
-        (message) => {
-          console.warn('Speech recognition error:', message);
-          recognitionActive.current = false;
-          setIsListening(false);
-          controller.current.setState('idle');
-        },
+        () => {},
+        (message) => console.warn('Speech recognition error:', message),
         () => {
+          // Browser SpeechRecognition often ends a session after a pause or a
+          // platform timeout. The mic toggle remains the source of truth: while
+          // it is ON, immediately start the next recognition session.
           if (!recognitionActive.current) return;
           window.setTimeout(() => {
             if (recognitionActive.current) voiceManager.startListening();
           }, 60);
         },
       );
+
       if (!recognition) {
         recognitionActive.current = false;
         setIsListening(false);
         controller.current.setState('idle');
         return;
       }
-      // Keep the same click-to-toggle interaction on desktop and mobile.
-      // Chrome may end one recognition segment by itself, so restart it while
-      // the toggle remains active.
-      const continuousRecognition = recognition as unknown as { continuous?: boolean };
-      continuousRecognition.continuous = true;
+
+      const controllerRecognition = recognition as unknown as RecognitionController;
+      controllerRecognition.continuous = true;
+      controllerRecognition.interimResults = true;
+
+      // VoiceService owns the recognition instance, but ChatUI needs the raw
+      // interim/final stream so the user can SEE that the app is listening.
+      controllerRecognition.onresult = (event: unknown) => {
+        if (!recognitionActive.current) return;
+        const resultEvent = event as SpeechResultEvent;
+        const results = resultEvent.results;
+        if (!results) return;
+
+        let finalPart = '';
+        let interimPart = '';
+        const startIndex = typeof resultEvent.resultIndex === 'number' ? resultEvent.resultIndex : 0;
+
+        for (let index = startIndex; index < results.length; index += 1) {
+          const result = results[index]?.[0];
+          const transcript = result?.transcript?.trim() ?? '';
+          if (!transcript) continue;
+          if (result?.isFinal) finalPart = `${finalPart} ${transcript}`.trim();
+          else interimPart = `${interimPart} ${transcript}`.trim();
+        }
+
+        if (finalPart) recognitionFinalText.current = `${recognitionFinalText.current} ${finalPart}`.trim();
+        const visibleText = `${recognitionFinalText.current} ${interimPart}`.trim();
+        setLiveVoiceText(visibleText);
+        if (finalPart) scheduleVoiceSend();
+      };
+
+      controllerRecognition.onerror = (event) => {
+        const error = event.error ?? '';
+        console.warn('Speech recognition error:', error);
+        // no-speech is a normal silence condition in an always-on voice chat.
+        // Do NOT turn the mic off; onend will restart recognition below.
+        if (error === 'no-speech' || error === 'aborted') return;
+        recognitionActive.current = false;
+        setIsListening(false);
+        setLiveVoiceText('');
+        controller.current.setState('idle');
+      };
+
+      controllerRecognition.onend = () => {
+        if (!recognitionActive.current) return;
+        window.setTimeout(() => {
+          if (recognitionActive.current) voiceManager.startListening();
+        }, 60);
+      };
+
       if (!voiceManager.startListening()) {
         recognitionActive.current = false;
         setIsListening(false);
         controller.current.setState('idle');
         return;
       }
+
       setIsListening(true);
       controller.current.setState('listening');
     } catch (error) {
       console.warn('Microphone permission failed:', error);
       recognitionActive.current = false;
       setIsListening(false);
+      setLiveVoiceText('');
       controller.current.setState('idle');
     }
   };
 
   const startBubbleDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
-    dragState.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      originX: bubbleOffset.x,
-      originY: bubbleOffset.y,
-    };
+    dragState.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, originX: bubbleOffset.x, originY: bubbleOffset.y };
   };
 
   const moveBubbleDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!dragState.current || dragState.current.pointerId !== event.pointerId) return;
     const nextX = dragState.current.originX + event.clientX - dragState.current.startX;
     const nextY = dragState.current.originY + event.clientY - dragState.current.startY;
-    setBubbleOffset({
-      x: Math.max(-140, Math.min(140, nextX)),
-      y: Math.max(-120, Math.min(120, nextY)),
-    });
+    setBubbleOffset({ x: Math.max(-140, Math.min(140, nextX)), y: Math.max(-120, Math.min(120, nextY)) });
   };
 
   const endBubbleDrag = (event: React.PointerEvent<HTMLDivElement>) => {
@@ -193,7 +275,7 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
       controller.current.setState('idle');
       return;
     }
-    const responses = messages.filter((message) => message.sender === 'character');
+    const responses = messagesRef.current.filter((message) => message.sender === 'character');
     if (!responses.length) return;
     const session = ++readSession.current;
     setIsReadingAll(true);
@@ -230,6 +312,12 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
         <div className="relative z-10 mx-auto flex min-h-full w-full max-w-3xl flex-col items-center justify-start">
           <p className="mb-2 text-center text-[10px] font-medium uppercase tracking-[.24em] text-amber-100/60 sm:text-xs">{character.identity.role}</p>
           <div className="w-[min(68vw,27rem)] sm:w-[min(48vw,30rem)]"><Avatar character={character} state={avatarState} size="xl" animationController={controller.current.getAnimationController()} /></div>
+
+          {liveVoiceText && <div className="mt-4 w-[min(94vw,40rem)] rounded-[2rem] border border-sky-200/35 bg-sky-950/65 px-5 py-4 text-right shadow-xl backdrop-blur-md" aria-live="polite" aria-label="متن زنده گفتار شما">
+            <div className="mb-1 flex items-center gap-2 text-xs font-semibold text-sky-200"><span className="h-2 w-2 animate-pulse rounded-full bg-sky-300" />در حال شنیدن...</div>
+            <p className="whitespace-pre-wrap break-words text-sm leading-7 text-white sm:text-base sm:leading-8">{liveVoiceText}</p>
+          </div>}
+
           <div className="relative mt-2 w-[min(94vw,40rem)] sm:mt-3" aria-live="polite" aria-label="پاسخ شخصیت">
             {lastCharacterMessage && <div
               className="relative mx-auto max-h-[min(30vh,16rem)] touch-none overflow-y-auto rounded-[2.2rem] border border-white/35 bg-white/90 px-5 py-4 text-right text-[#21172a] shadow-2xl backdrop-blur-md sm:px-7 sm:py-5"
