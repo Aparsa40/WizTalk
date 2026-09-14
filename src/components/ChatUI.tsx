@@ -39,7 +39,8 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
   const timer = useRef<number | null>(null);
   const recognitionFinalText = useRef('');
   const recognitionActive = useRef(false);
-  const voiceSendTimer = useRef<number | null>(null);
+  const stoppingRecognition = useRef(false);
+  const pendingVoiceSubmit = useRef('');
   const messagesRef = useRef<Message[]>([]);
   const readSession = useRef(0);
   const dragState = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
@@ -66,13 +67,20 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
 
     return () => {
       recognitionActive.current = false;
+      stoppingRecognition.current = false;
       voiceManager.abortListening();
       voiceManager.stop();
       if (timer.current !== null) window.clearTimeout(timer.current);
-      if (voiceSendTimer.current !== null) window.clearTimeout(voiceSendTimer.current);
       lipSync.current?.reset();
     };
   }, [character.identity.id, character.identity.greeting]);
+
+  useEffect(() => {
+    if (isTyping || !pendingVoiceSubmit.current) return;
+    const text = pendingVoiceSubmit.current;
+    pendingVoiceSubmit.current = '';
+    void submitMessage(text, 'text');
+  }, [isTyping]);
 
   const speak = async (text: string, messageId?: string) => {
     controller.current.setState('speaking');
@@ -118,33 +126,37 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
     }
   };
 
-  const scheduleVoiceSend = () => {
-    if (voiceSendTimer.current !== null) window.clearTimeout(voiceSendTimer.current);
-    voiceSendTimer.current = window.setTimeout(() => {
-      voiceSendTimer.current = null;
-      const finalText = recognitionFinalText.current.trim();
-      if (!recognitionActive.current || !finalText) return;
-      if (isTyping) {
-        scheduleVoiceSend();
-        return;
-      }
-      void submitMessage(finalText, 'text');
-    }, 1100);
-  };
-
   const handleSend = async () => { await submitMessage(input, 'text'); };
 
-  const finishListening = () => {
+  const finalizeStoppedVoiceTurn = () => {
     recognitionActive.current = false;
-    if (voiceSendTimer.current !== null) window.clearTimeout(voiceSendTimer.current);
-    voiceSendTimer.current = null;
-    voiceManager.stopListening();
+    stoppingRecognition.current = false;
     setIsListening(false);
-    controller.current.setState('idle');
     setLiveVoiceText('');
+    controller.current.setState('idle');
+
     const finalText = recognitionFinalText.current.trim();
     recognitionFinalText.current = '';
-    if (finalText && !isTyping) void submitMessage(finalText, 'text');
+    if (!finalText) return;
+
+    // The microphone toggle ends the user turn. If a previous response is
+    // still being generated, keep the voice turn queued instead of dropping it.
+    if (isTyping) {
+      pendingVoiceSubmit.current = finalText;
+      return;
+    }
+    void submitMessage(finalText, 'text');
+  };
+
+  const finishListening = () => {
+    if (!recognitionActive.current || stoppingRecognition.current) return;
+
+    // Do not mark recognition inactive before stop(). SpeechRecognition.stop()
+    // may deliver one last final result asynchronously; onresult must be able
+    // to collect that result before onend finalizes the voice turn.
+    stoppingRecognition.current = true;
+    setIsListening(false);
+    voiceManager.stopListening();
   };
 
   const toggleListening = async () => {
@@ -159,19 +171,24 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
       stream.getTracks().forEach((track) => track.stop());
 
       recognitionFinalText.current = '';
+      pendingVoiceSubmit.current = '';
       setLiveVoiceText('');
+      stoppingRecognition.current = false;
       recognitionActive.current = true;
       const recognition = voiceManager.initSpeechToText(
         character,
         () => {},
         (message) => console.warn('Speech recognition error:', message),
         () => {
-          // Browser SpeechRecognition often ends a session after a pause or a
-          // platform timeout. The mic toggle remains the source of truth: while
-          // it is ON, immediately start the next recognition session.
+          // A recognition session can end because of silence or a browser
+          // service timeout. That does NOT end the user's Voice Chat turn.
+          if (stoppingRecognition.current) {
+            finalizeStoppedVoiceTurn();
+            return;
+          }
           if (!recognitionActive.current) return;
           window.setTimeout(() => {
-            if (recognitionActive.current) voiceManager.startListening();
+            if (recognitionActive.current && !stoppingRecognition.current) voiceManager.startListening();
           }, 60);
         },
       );
@@ -190,7 +207,10 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
       // VoiceService owns the recognition instance, but ChatUI needs the raw
       // interim/final stream so the user can SEE that the app is listening.
       controllerRecognition.onresult = (event: unknown) => {
-        if (!recognitionActive.current) return;
+        // During an explicit stop, accept the final result that the browser may
+        // emit before onend. Silence/session endings while the mic is still ON
+        // never reach this finalization path.
+        if (!recognitionActive.current && !stoppingRecognition.current) return;
         const resultEvent = event as SpeechResultEvent;
         const results = resultEvent.results;
         if (!results) return;
@@ -210,15 +230,15 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
         if (finalPart) recognitionFinalText.current = `${recognitionFinalText.current} ${finalPart}`.trim();
         const visibleText = `${recognitionFinalText.current} ${interimPart}`.trim();
         setLiveVoiceText(visibleText);
-        if (finalPart) scheduleVoiceSend();
       };
 
       controllerRecognition.onerror = (event) => {
         const error = event.error ?? '';
         console.warn('Speech recognition error:', error);
-        // no-speech is a normal silence condition in an always-on voice chat.
-        // Do NOT turn the mic off; onend will restart recognition below.
+        // no-speech/aborted are normal lifecycle events for this persistent
+        // Voice Chat. They must not submit text or turn the mic off.
         if (error === 'no-speech' || error === 'aborted') return;
+        if (stoppingRecognition.current) return;
         recognitionActive.current = false;
         setIsListening(false);
         setLiveVoiceText('');
@@ -226,9 +246,13 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
       };
 
       controllerRecognition.onend = () => {
+        if (stoppingRecognition.current) {
+          finalizeStoppedVoiceTurn();
+          return;
+        }
         if (!recognitionActive.current) return;
         window.setTimeout(() => {
-          if (recognitionActive.current) voiceManager.startListening();
+          if (recognitionActive.current && !stoppingRecognition.current) voiceManager.startListening();
         }, 60);
       };
 
@@ -244,6 +268,7 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
     } catch (error) {
       console.warn('Microphone permission failed:', error);
       recognitionActive.current = false;
+      stoppingRecognition.current = false;
       setIsListening(false);
       setLiveVoiceText('');
       controller.current.setState('idle');
