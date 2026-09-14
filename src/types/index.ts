@@ -138,7 +138,12 @@ export function normalizeCharacter(raw: Character | LegacyCharacter | Record<str
   const legacyText = value.textModels?.default ?? value.ai ?? {};
   const primaryText = value.textModels?.primary ?? legacyText;
   const secondaryText = value.textModels?.secondary ?? { provider: primaryText.provider ?? 'local', model: primaryText.model ?? 'faq-keyword-v1', enabled: false };
-  const legacyVoiceOutput = value.voiceModels?.default ?? value.voice ?? {};
+
+  // Prefer the current voiceModels.output field before compatibility aliases.
+  // The previous order ignored a fully normalized voiceModels object when it did
+  // not also contain the deprecated `default` alias, silently changing external
+  // TTS configuration back to the browser provider during normalization.
+  const legacyVoiceOutput = value.voiceModels?.output ?? value.voiceModels?.default ?? value.voice ?? {};
   const primaryVoice = value.voiceModels?.primary ?? { provider: primaryText.provider ?? 'local', model: primaryText.model ?? 'faq-keyword-v1', enabled: false };
   const secondaryVoice = value.voiceModels?.secondary ?? { provider: primaryVoice.provider ?? 'local', model: primaryVoice.model ?? 'faq-keyword-v1', enabled: false };
   const outputVoice: VoiceConfig = { provider: legacyVoiceOutput.provider ?? 'browser', language: String(legacyVoiceOutput.language ?? 'fa-IR'), enabled: legacyVoiceOutput.enabled !== false, ...legacyVoiceOutput };
