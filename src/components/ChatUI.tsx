@@ -39,7 +39,13 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
   const timer = useRef<number | null>(null);
   const recognitionFinalText = useRef('');
   const recognitionActive = useRef(false);
-  const voiceSendTimer = useRef<number | null>(null);
+  // The microphone toggle is the source of truth for a voice turn. This ref
+  // prevents SpeechRecognition's final result/onend lifecycle from submitting
+  // or closing the turn before the user explicitly turns the mic off.
+  const stoppingRecognition = useRef(false);
+  // If the user turns the mic off while the previous response is still being
+  // generated, keep the completed voice turn queued until typing finishes.
+  const pendingVoiceSubmit = useRef('');
   const messagesRef = useRef<Message[]>([]);
   const readSession = useRef(0);
   const dragState = useRef<{ pointerId: number; startX: number; startY: number; originX: number; originY: number } | null>(null);
@@ -66,10 +72,11 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
 
     return () => {
       recognitionActive.current = false;
+      stoppingRecognition.current = false;
+      pendingVoiceSubmit.current = '';
       voiceManager.abortListening();
       voiceManager.stop();
       if (timer.current !== null) window.clearTimeout(timer.current);
-      if (voiceSendTimer.current !== null) window.clearTimeout(voiceSendTimer.current);
       lipSync.current?.reset();
     };
   }, [character.identity.id, character.identity.greeting]);
@@ -118,33 +125,45 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
     }
   };
 
-  const scheduleVoiceSend = () => {
-    if (voiceSendTimer.current !== null) window.clearTimeout(voiceSendTimer.current);
-    voiceSendTimer.current = window.setTimeout(() => {
-      voiceSendTimer.current = null;
-      const finalText = recognitionFinalText.current.trim();
-      if (!recognitionActive.current || !finalText) return;
-      if (isTyping) {
-        scheduleVoiceSend();
-        return;
-      }
-      void submitMessage(finalText, 'text');
-    }, 1100);
+  // A completed SpeechRecognition segment is only transcript data. It is NOT
+  // a completed user turn. The user ends the turn explicitly by clicking Mic OFF.
+  const finalizeStoppedVoiceTurn = () => {
+    recognitionActive.current = false;
+    stoppingRecognition.current = false;
+    setIsListening(false);
+    setLiveVoiceText('');
+    controller.current.setState('idle');
+
+    const finalText = recognitionFinalText.current.trim();
+    recognitionFinalText.current = '';
+    if (!finalText) return;
+
+    if (isTyping) {
+      pendingVoiceSubmit.current = finalText;
+      return;
+    }
+
+    void submitMessage(finalText, 'text');
   };
+
+  useEffect(() => {
+    if (isTyping || !pendingVoiceSubmit.current) return;
+    const text = pendingVoiceSubmit.current;
+    pendingVoiceSubmit.current = '';
+    void submitMessage(text, 'text');
+  }, [isTyping]);
 
   const handleSend = async () => { await submitMessage(input, 'text'); };
 
   const finishListening = () => {
-    recognitionActive.current = false;
-    if (voiceSendTimer.current !== null) window.clearTimeout(voiceSendTimer.current);
-    voiceSendTimer.current = null;
-    voiceManager.stopListening();
+    if (!recognitionActive.current || stoppingRecognition.current) return;
+
+    // Keep recognitionActive=true until SpeechRecognition fires onend. Some
+    // browsers emit one last final result asynchronously after stop(), and we
+    // must capture that result before finalizing the turn.
+    stoppingRecognition.current = true;
     setIsListening(false);
-    controller.current.setState('idle');
-    setLiveVoiceText('');
-    const finalText = recognitionFinalText.current.trim();
-    recognitionFinalText.current = '';
-    if (finalText && !isTyping) void submitMessage(finalText, 'text');
+    voiceManager.stopListening();
   };
 
   const toggleListening = async () => {
@@ -159,19 +178,22 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
       stream.getTracks().forEach((track) => track.stop());
 
       recognitionFinalText.current = '';
+      pendingVoiceSubmit.current = '';
+      stoppingRecognition.current = false;
       setLiveVoiceText('');
       recognitionActive.current = true;
+
       const recognition = voiceManager.initSpeechToText(
         character,
         () => {},
         (message) => console.warn('Speech recognition error:', message),
         () => {
-          // Browser SpeechRecognition often ends a session after a pause or a
-          // platform timeout. The mic toggle remains the source of truth: while
-          // it is ON, immediately start the next recognition session.
-          if (!recognitionActive.current) return;
+          // SpeechRecognition may end its internal session after silence or a
+          // browser/platform timeout. While Mic is still ON, silently start a
+          // new session. This does not submit or end the user's voice turn.
+          if (!recognitionActive.current || stoppingRecognition.current) return;
           window.setTimeout(() => {
-            if (recognitionActive.current) voiceManager.startListening();
+            if (recognitionActive.current && !stoppingRecognition.current) voiceManager.startListening();
           }, 60);
         },
       );
@@ -190,7 +212,7 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
       // VoiceService owns the recognition instance, but ChatUI needs the raw
       // interim/final stream so the user can SEE that the app is listening.
       controllerRecognition.onresult = (event: unknown) => {
-        if (!recognitionActive.current) return;
+        if (!recognitionActive.current || stoppingRecognition.current) return;
         const resultEvent = event as SpeechResultEvent;
         const results = resultEvent.results;
         if (!results) return;
@@ -210,25 +232,36 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
         if (finalPart) recognitionFinalText.current = `${recognitionFinalText.current} ${finalPart}`.trim();
         const visibleText = `${recognitionFinalText.current} ${interimPart}`.trim();
         setLiveVoiceText(visibleText);
-        if (finalPart) scheduleVoiceSend();
+        // IMPORTANT: no auto-send/debounce here. A final recognition result is
+        // only another transcript segment; Mic OFF is the only submit trigger.
       };
 
       controllerRecognition.onerror = (event) => {
         const error = event.error ?? '';
         console.warn('Speech recognition error:', error);
-        // no-speech is a normal silence condition in an always-on voice chat.
-        // Do NOT turn the mic off; onend will restart recognition below.
+
+        // These are normal lifecycle events for an always-on voice turn. The
+        // user remains in control of the turn through the Mic toggle.
         if (error === 'no-speech' || error === 'aborted') return;
+
         recognitionActive.current = false;
+        stoppingRecognition.current = false;
         setIsListening(false);
         setLiveVoiceText('');
         controller.current.setState('idle');
       };
 
       controllerRecognition.onend = () => {
+        if (stoppingRecognition.current) {
+          finalizeStoppedVoiceTurn();
+          return;
+        }
         if (!recognitionActive.current) return;
+
+        // Internal recognition session ended, but the user's voice turn is
+        // still active. Restart without changing the visible Mic state.
         window.setTimeout(() => {
-          if (recognitionActive.current) voiceManager.startListening();
+          if (recognitionActive.current && !stoppingRecognition.current) voiceManager.startListening();
         }, 60);
       };
 
@@ -244,6 +277,7 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
     } catch (error) {
       console.warn('Microphone permission failed:', error);
       recognitionActive.current = false;
+      stoppingRecognition.current = false;
       setIsListening(false);
       setLiveVoiceText('');
       controller.current.setState('idle');
