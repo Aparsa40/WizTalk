@@ -20,6 +20,10 @@ export interface VoiceResult {
  * TTS execution only. Voice response-model fallback is owned by ResponseManager.
  * The primary external TTS route is server-side OpenRouter; browser TTS remains
  * the final client-side fallback so a provider outage never removes the text reply.
+ *
+ * When executors are injected, they are treated as the complete execution chain.
+ * This keeps unit tests and future provider adapters deterministic and prevents a
+ * failed injected executor from unexpectedly invoking a real network/browser API.
  */
 export class VoiceManager {
   private readonly executors: VoiceExecutor[];
@@ -27,7 +31,9 @@ export class VoiceManager {
   private currentAudioUrl: string | null = null;
 
   constructor(executors: VoiceExecutor[] = []) {
-    this.executors = executors;
+    this.executors = executors.length
+      ? executors
+      : [this.externalExecutor(), this.browserExecutor()];
   }
 
   async speak(
@@ -43,13 +49,10 @@ export class VoiceManager {
     }
 
     const configured = this.executors.filter((executor) => executor.provider === output.provider);
-    const external = output.provider === 'external'
-      ? [this.externalExecutor()]
-      : [];
     const browser = this.executors.filter((executor) => executor.provider === 'browser');
     const ordered = output.provider === 'browser'
-      ? (browser.length ? browser : [this.browserExecutor()])
-      : [...configured, ...external, this.browserExecutor()];
+      ? (browser.length ? browser : this.executors.filter((executor) => executor.provider === 'browser'))
+      : [...configured, ...browser];
 
     for (const executor of ordered) {
       try {
