@@ -107,5 +107,5 @@ test('Voice Manager preserves text-only behavior when every provider fails', asy
 
   assert.equal(result.spoken, false);
   assert.equal(result.provider, 'none');
-  assert.match(result.error ?? '', /external unavailable/);
+  assert.equal(result.error, 'voice output unavailable');
 });
