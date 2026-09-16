@@ -66,11 +66,13 @@ export function Avatar({ character, state, size = 'lg' }: AvatarProps) {
   const [failed, setFailed] = useState(false);
   const [smiling, setSmiling] = useState(false);
   const isAnimated2D = character.avatar.type === 'animated-2d';
+  const isVrm = character.avatar.type === 'vrm';
   const source = character.avatar.source;
+  const visualSource = isVrm ? (character.avatar.thumbnail ?? character.avatar.fallbackSource ?? '') : source;
   const variant = character.avatar.presetId ?? 'classic-bedroom';
   const motionClass = getAvatarMotionClass(state);
 
-  useEffect(() => setFailed(false), [character.identity.id, source]);
+  useEffect(() => setFailed(false), [character.identity.id, source, visualSource]);
 
   useEffect(() => {
     if (!isAnimated2D) return;
@@ -94,9 +96,9 @@ export function Avatar({ character, state, size = 'lg' }: AvatarProps) {
       <div className={`h-full w-full ${motionClass}`} data-avatar-motion={motionClass}>
         {isAnimated2D ? (
           <AnimatedWizardAvatar speaking={state === 'speaking'} smiling={smiling} variant={variant} />
-        ) : source && !failed ? (
+        ) : visualSource && !failed ? (
           <img
-            src={source}
+            src={visualSource}
             alt={character.identity.displayName}
             className="h-full w-full object-cover"
             onError={() => setFailed(true)}
