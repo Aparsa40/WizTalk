@@ -131,14 +131,14 @@ export class VRMAvatarRenderer implements AvatarAnimationAdapter {
     const leftLowerArm = humanoid.getNormalizedBoneNode('leftLowerArm');
     const rightLowerArm = humanoid.getNormalizedBoneNode('rightLowerArm');
 
-    // VRM avatars commonly arrive in a T-pose. Lower both arms into a relaxed
-    // neutral pose, then briefly lift the right arm toward the face for greeting.
-    if (leftUpperArm) leftUpperArm.rotation.z = 1.18;
-    if (rightUpperArm) rightUpperArm.rotation.z = -1.18;
+    // VRM avatars commonly arrive in a T-pose. This VRM's arm rotation axis
+    // needs the opposite sign to bring both upper arms down beside the torso.
+    // Keep the same rotation magnitude, then briefly reverse the right-arm
+    // rotation toward the face for the greeting gesture before returning it down.
+    if (leftUpperArm) leftUpperArm.rotation.z = -1.18;
+    if (rightUpperArm) rightUpperArm.rotation.z = 1.18 - 0.82 * greeting;
     if (leftLowerArm) leftLowerArm.rotation.z = 0;
-    if (rightLowerArm) rightLowerArm.rotation.z = -1.35 * greeting;
-
-    if (rightUpperArm) rightUpperArm.rotation.z = -1.18 + 0.82 * greeting;
+    if (rightLowerArm) rightLowerArm.rotation.z = 1.35 * greeting;
   }
 
   private updateBlink(delta: number): void {
