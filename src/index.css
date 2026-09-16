@@ -11,7 +11,43 @@ button:disabled { cursor: not-allowed; }
 
 @keyframes wiztalk-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.08); } }
 @keyframes wiztalk-speaking { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(1px) scaleY(0.72); } }
+
+@keyframes wiztalk-idle-float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(0, -7px, 0) rotate(0.25deg); }
+}
+@keyframes wiztalk-listening-sway {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(3px, -2px, 0) rotate(0.55deg); }
+}
+@keyframes wiztalk-thinking-bob {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(-2px, -4px, 0) rotate(-0.45deg); }
+}
+@keyframes wiztalk-speaking-nod {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  35% { transform: translate3d(0, -3px, 0) rotate(-0.35deg); }
+  70% { transform: translate3d(0, 1px, 0) rotate(0.2deg); }
+}
+@keyframes wiztalk-error-shake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  25% { transform: translate3d(-3px, 0, 0); }
+  75% { transform: translate3d(3px, 0, 0); }
+}
+
 .avatar-blink { transform-box: fill-box; transform-origin: center; animation: wiztalk-blink 4.6s infinite; }
 [data-avatar-state='speaking'] .avatar-mouth { transform-box: fill-box; transform-origin: center; animation: wiztalk-speaking .34s infinite; }
 [data-avatar-state='speaking'] .avatar-face { filter: brightness(1.03); }
-@media (prefers-reduced-motion: reduce) { .avatar-blink, [data-avatar-state='speaking'] .avatar-mouth { animation: none; } }
+
+.avatar-motion { transform-origin: 50% 75%; will-change: transform; }
+.avatar-motion--idle-float { animation: wiztalk-idle-float 4.8s ease-in-out infinite; }
+.avatar-motion--listening-sway { animation: wiztalk-listening-sway 2.8s ease-in-out infinite; }
+.avatar-motion--thinking-bob { animation: wiztalk-thinking-bob 2.2s ease-in-out infinite; }
+.avatar-motion--speaking-nod { animation: wiztalk-speaking-nod .9s ease-in-out infinite; }
+.avatar-motion--error-shake { animation: wiztalk-error-shake .32s ease-in-out 2; }
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-blink,
+  [data-avatar-state='speaking'] .avatar-mouth,
+  .avatar-motion { animation: none; }
+}
