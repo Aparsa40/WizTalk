@@ -34,6 +34,67 @@ async function loadRuntime(): Promise<Runtime> {
   return { THREE, GLTFLoader, VRMLoaderPlugin, VRMUtils };
 }
 
+function createRoundGlasses(THREE: any, head: any, modelHeight: number) {
+  if (!head) return null;
+
+  const group = new THREE.Group();
+  group.name = 'wiztalk-vrm-glasses';
+
+  const frameRadius = Math.max(0.055, Math.min(0.095, modelHeight * 0.055));
+  const frameTube = frameRadius * 0.075;
+  const eyeSpacing = frameRadius * 2.15;
+  const lensZ = -Math.max(0.045, modelHeight * 0.035);
+  const bridgeWidth = eyeSpacing * 0.72;
+
+  const frameMaterial = new THREE.MeshStandardMaterial({
+    color: 0x171717,
+    metalness: 0.55,
+    roughness: 0.3,
+  });
+
+  const leftFrame = new THREE.Mesh(
+    new THREE.TorusGeometry(frameRadius, frameTube, 12, 48),
+    frameMaterial,
+  );
+  leftFrame.position.set(-eyeSpacing / 2, 0, lensZ);
+
+  const rightFrame = new THREE.Mesh(
+    new THREE.TorusGeometry(frameRadius, frameTube, 12, 48),
+    frameMaterial,
+  );
+  rightFrame.position.set(eyeSpacing / 2, 0, lensZ);
+
+  const bridge = new THREE.Mesh(
+    new THREE.CylinderGeometry(frameTube, frameTube, bridgeWidth, 12),
+    frameMaterial,
+  );
+  bridge.rotation.z = Math.PI / 2;
+  bridge.position.set(0, 0, lensZ);
+
+  group.add(leftFrame, rightFrame, bridge);
+
+  const armLength = frameRadius * 2.7;
+  const leftArm = new THREE.Mesh(
+    new THREE.CylinderGeometry(frameTube * 0.8, frameTube * 0.8, armLength, 10),
+    frameMaterial,
+  );
+  leftArm.rotation.z = Math.PI / 2;
+  leftArm.position.set(-eyeSpacing / 2 - armLength / 2, 0, lensZ + frameTube);
+
+  const rightArm = new THREE.Mesh(
+    new THREE.CylinderGeometry(frameTube * 0.8, frameTube * 0.8, armLength, 10),
+    frameMaterial,
+  );
+  rightArm.rotation.z = Math.PI / 2;
+  rightArm.position.set(eyeSpacing / 2 + armLength / 2, 0, lensZ + frameTube);
+
+  group.add(leftArm, rightArm);
+  head.add(group);
+  group.position.set(0, modelHeight * 0.008, 0);
+
+  return group;
+}
+
 export function VRMAvatar({ source, fallbackSource, alt, state, animationController }: VRMAvatarProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<VRMAvatarRenderer | null>(null);
@@ -48,6 +109,7 @@ export function VRMAvatar({ source, fallbackSource, alt, state, animationControl
     let animationFrame = 0;
     let runtimeRenderer: any;
     let currentVrm: any;
+    let glassesGroup: any;
     let controllerDetach: (() => void) | undefined;
     let resizeObserver: ResizeObserver | undefined;
 
@@ -123,6 +185,10 @@ export function VRMAvatar({ source, fallbackSource, alt, state, animationControl
         camera.updateProjectionMatrix();
 
         scene.add(currentVrm.scene);
+
+        const head = currentVrm.humanoid?.getNormalizedBoneNode?.('head');
+        glassesGroup = createRoundGlasses(THREE, head, height);
+
         rendererAdapter.setVrm(currentVrm);
         rendererAdapter.setState(state);
         if (animationController) {
@@ -169,6 +235,14 @@ export function VRMAvatar({ source, fallbackSource, alt, state, animationControl
       resizeObserver?.disconnect();
       rendererAdapter.reset();
       rendererRef.current = null;
+
+      if (glassesGroup) {
+        glassesGroup.traverse((object: any) => {
+          object.geometry?.dispose?.();
+          object.material?.dispose?.();
+        });
+        glassesGroup.parent?.remove(glassesGroup);
+      }
 
       if (currentVrm?.scene) {
         try {
