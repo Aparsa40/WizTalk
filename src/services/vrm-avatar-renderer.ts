@@ -58,13 +58,22 @@ export class VRMAvatarRenderer implements AvatarAnimationAdapter {
   private elapsed = 0;
   private blinkTimer = 2.8;
   private blinkRemaining = 0;
+  private greetingRemaining = 0;
+  private greetingTriggered = false;
 
   setVrm(vrm: any): void {
     this.vrm = vrm;
     this.applyExpressions();
+    this.applyArmPose(0);
   }
 
   setState(state: AvatarState): void {
+    if (state === 'speaking' && this.state !== 'speaking' && !this.greetingTriggered) {
+      // The first spoken response is treated as the character's greeting gesture.
+      // A future semantic greeting event can replace this without changing the renderer boundary.
+      this.greetingTriggered = true;
+      this.greetingRemaining = 1.8;
+    }
     this.state = state;
   }
 
@@ -82,7 +91,10 @@ export class VRMAvatarRenderer implements AvatarAnimationAdapter {
     };
     this.elapsed = 0;
     this.blinkRemaining = 0;
+    this.greetingRemaining = 0;
+    this.greetingTriggered = false;
     this.applyExpressions();
+    this.applyArmPose(0);
   }
 
   update(delta: number): void {
@@ -90,8 +102,43 @@ export class VRMAvatarRenderer implements AvatarAnimationAdapter {
 
     this.elapsed += delta;
     this.updateBlink(delta);
+    this.updateGreeting(delta);
     this.updateMotion();
     this.vrm.update?.(delta);
+  }
+
+  private updateGreeting(delta: number): void {
+    if (this.greetingRemaining > 0) {
+      this.greetingRemaining = Math.max(0, this.greetingRemaining - delta);
+      const progress = 1 - this.greetingRemaining / 1.8;
+      const wave = progress < 0.35
+        ? progress / 0.35
+        : progress < 0.72
+          ? 1
+          : 1 - (progress - 0.72) / 0.28;
+      this.applyArmPose(Math.max(0, Math.min(1, wave)));
+    } else {
+      this.applyArmPose(0);
+    }
+  }
+
+  private applyArmPose(greeting: number): void {
+    const humanoid = this.vrm?.humanoid;
+    if (!humanoid?.getNormalizedBoneNode) return;
+
+    const leftUpperArm = humanoid.getNormalizedBoneNode('leftUpperArm');
+    const rightUpperArm = humanoid.getNormalizedBoneNode('rightUpperArm');
+    const leftLowerArm = humanoid.getNormalizedBoneNode('leftLowerArm');
+    const rightLowerArm = humanoid.getNormalizedBoneNode('rightLowerArm');
+
+    // VRM avatars commonly arrive in a T-pose. Lower both arms into a relaxed
+    // neutral pose, then briefly lift the right arm toward the face for greeting.
+    if (leftUpperArm) leftUpperArm.rotation.z = 1.18;
+    if (rightUpperArm) rightUpperArm.rotation.z = -1.18;
+    if (leftLowerArm) leftLowerArm.rotation.z = 0;
+    if (rightLowerArm) rightLowerArm.rotation.z = -1.35 * greeting;
+
+    if (rightUpperArm) rightUpperArm.rotation.z = -1.18 + 0.82 * greeting;
   }
 
   private updateBlink(delta: number): void {
