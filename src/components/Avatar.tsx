@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { AvatarState, Character } from '../types';
 import type { AvatarAnimationController } from '../services/avatar-animation';
+import type { MouthShape } from '../services/avatar-animation';
+import { Avatar2DAnimationAdapter } from '../services/avatar-animation-adapter';
 import { getAvatarMotionClass } from '../services/avatar-motion';
 import { VRMAvatar } from './VRMAvatar';
 
@@ -27,8 +29,18 @@ const stateLabel: Record<AvatarState, string> = {
   error: 'آماده',
 };
 
-function AnimatedWizardAvatar({ speaking, smiling, variant }: { speaking: boolean; smiling: boolean; variant: string }) {
+const mouthPaths: Record<MouthShape, string> = {
+  closed: 'M286 326 Q300 340 314 326',
+  'open-small': 'M284 324 Q300 344 316 324',
+  'open-medium': 'M282 322 Q300 352 318 322',
+  'open-large': 'M278 318 Q300 360 322 318',
+  smile: 'M282 322 Q300 350 318 322',
+  pursed: 'M289 326 Q300 342 311 326',
+};
+
+function AnimatedWizardAvatar({ speaking, smiling, variant, mouthShape }: { speaking: boolean; smiling: boolean; variant: string; mouthShape: MouthShape }) {
   const illustrated = variant === 'illustrated-hall';
+  const resolvedMouthShape = smiling ? 'smile' : mouthShape;
 
   return (
     <svg className="avatar-face h-full w-full drop-shadow-2xl" viewBox="0 0 600 760" role="presentation" aria-hidden="true">
@@ -50,14 +62,14 @@ function AnimatedWizardAvatar({ speaking, smiling, variant }: { speaking: boolea
       <circle cx="378" cy="282" r="9" fill="#101015" />
       <path d="M286 176 l-13 28 18 14 -16 24" fill="none" stroke="#7b2d35" strokeWidth="7" strokeLinecap="round" />
       <path
-        className="avatar-mouth"
-        d={smiling ? 'M286 326 Q300 344 314 326' : 'M286 326 Q300 340 314 326'}
-        fill={speaking ? '#7f3038' : 'none'}
+        className={`avatar-mouth mouth-${resolvedMouthShape.replace('-', '-')}`}
+        d={mouthPaths[resolvedMouthShape]}
+        fill={resolvedMouthShape === 'closed' ? 'none' : '#7f3038'}
         stroke="#6e3e35"
         strokeWidth="7"
         strokeLinecap="round"
       />
-      {speaking && <ellipse cx="300" cy="334" rx="12" ry="5" fill="#f0a1a1" className="animate-pulse" />}
+      {speaking && resolvedMouthShape !== 'closed' && <ellipse cx="300" cy="338" rx="12" ry="5" fill="#f0a1a1" className="animate-pulse" />}
       <path d="M125 700 Q145 500 300 470 Q455 500 475 700Z" fill={illustrated ? '#222b45' : '#1c273b'} />
       <path d="M160 700 Q190 535 300 515 Q410 535 440 700" fill="none" stroke={illustrated ? '#8ab6d9' : '#caa85a'} strokeWidth="12" />
     </svg>
@@ -67,12 +79,33 @@ function AnimatedWizardAvatar({ speaking, smiling, variant }: { speaking: boolea
 export function Avatar({ character, state, size = 'lg', animationController }: AvatarProps) {
   const [failed, setFailed] = useState(false);
   const [smiling, setSmiling] = useState(false);
+  const [mouthShape, setMouthShape] = useState<MouthShape>('closed');
   const isAnimated2D = character.avatar.type === 'animated-2d';
   const isVrm = character.avatar.type === 'vrm';
   const source = character.avatar.source;
   const motionClass = getAvatarMotionClass(state);
 
   useEffect(() => setFailed(false), [character.identity.id, source]);
+
+  useEffect(() => {
+    if (!isAnimated2D || !animationController) {
+      setMouthShape('closed');
+      return undefined;
+    }
+
+    const adapter = new Avatar2DAnimationAdapter();
+    const detach = animationController.attachAdapter(adapter);
+    const sync = () => setMouthShape(adapter.getLipSync().mouthShape);
+    const unsubscribe = animationController.subscribe((command) => {
+      if (command.type === 'lip-sync' || command.type === 'reset') sync();
+    });
+    sync();
+
+    return () => {
+      unsubscribe();
+      detach();
+    };
+  }, [isAnimated2D, animationController]);
 
   useEffect(() => {
     if (!isAnimated2D) return;
@@ -104,7 +137,12 @@ export function Avatar({ character, state, size = 'lg', animationController }: A
             animationController={animationController}
           />
         ) : isAnimated2D ? (
-          <AnimatedWizardAvatar speaking={state === 'speaking'} smiling={smiling} variant={character.avatar.presetId ?? 'classic-bedroom'} />
+          <AnimatedWizardAvatar
+            speaking={state === 'speaking'}
+            smiling={smiling}
+            variant={character.avatar.presetId ?? 'classic-bedroom'}
+            mouthShape={mouthShape}
+          />
         ) : source && !failed ? (
           <img
             src={source}
