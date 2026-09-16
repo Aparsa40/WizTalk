@@ -62,7 +62,7 @@ function AnimatedWizardAvatar({ speaking, smiling, variant, mouthShape }: { spea
       <circle cx="378" cy="282" r="9" fill="#101015" />
       <path d="M286 176 l-13 28 18 14 -16 24" fill="none" stroke="#7b2d35" strokeWidth="7" strokeLinecap="round" />
       <path
-        className={`avatar-mouth mouth-${resolvedMouthShape.replace('-', '-')}`}
+        className={`avatar-mouth mouth-${resolvedMouthShape}`}
         d={mouthPaths[resolvedMouthShape]}
         fill={resolvedMouthShape === 'closed' ? 'none' : '#7f3038'}
         stroke="#6e3e35"
