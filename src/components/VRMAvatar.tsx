@@ -19,8 +19,13 @@ type Runtime = {
 };
 
 async function loadRuntime(): Promise<Runtime> {
+  // These browser modules are resolved by the import map in index.html.
+  // They intentionally remain outside Vite's npm dependency graph.
+  // @ts-ignore CDN runtime module resolved by browser import map.
   const THREE = await import(/* @vite-ignore */ 'three') as any;
+  // @ts-ignore CDN runtime module resolved by browser import map.
   const { GLTFLoader } = await import(/* @vite-ignore */ 'three/addons/loaders/GLTFLoader.js') as any;
+  // @ts-ignore CDN runtime module resolved by browser import map.
   const { VRMLoaderPlugin, VRMUtils } = await import(/* @vite-ignore */ '@pixiv/three-vrm') as any;
   return { THREE, GLTFLoader, VRMLoaderPlugin, VRMUtils };
 }
