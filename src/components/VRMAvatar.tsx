@@ -19,18 +19,13 @@ type Runtime = {
 };
 
 async function loadRuntime(): Promise<Runtime> {
-  const THREE = await import(
-    /* @vite-ignore */
-    'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js'
-  ) as any;
-  const { GLTFLoader } = await import(
-    /* @vite-ignore */
-    'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js'
-  ) as any;
-  const { VRMLoaderPlugin, VRMUtils } = await import(
-    /* @vite-ignore */
-    'https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.5.5/lib/three-vrm.module.min.js'
-  ) as any;
+  const threeModule = 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
+  const gltfLoaderModule = 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
+  const vrmModule = 'https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.5.5/lib/three-vrm.module.min.js';
+
+  const THREE = await import(/* @vite-ignore */ threeModule) as any;
+  const { GLTFLoader } = await import(/* @vite-ignore */ gltfLoaderModule) as any;
+  const { VRMLoaderPlugin, VRMUtils } = await import(/* @vite-ignore */ vrmModule) as any;
   return { THREE, GLTFLoader, VRMLoaderPlugin, VRMUtils };
 }
 
