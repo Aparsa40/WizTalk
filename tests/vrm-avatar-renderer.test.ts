@@ -20,6 +20,6 @@ test('VRM mouth mapping opens aa/oh for large mouth intent', () => {
 
 test('VRM mouth mapping clamps amplitude to the supported range', () => {
   const values = mouthShapeToExpressions('pursed', 3);
-  assert.equal(values.ou, 0.95);
-  assert.equal(values.ih, 0.16);
+  assert.ok(Math.abs(values.ou - 0.95) < Number.EPSILON * 8);
+  assert.ok(Math.abs(values.ih - 0.16) < Number.EPSILON * 8);
 });
