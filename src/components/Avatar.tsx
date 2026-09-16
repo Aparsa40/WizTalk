@@ -60,6 +60,13 @@ function AnimatedWizardAvatar({ speaking, smiling, variant, mouthShape }: { spea
       </g>
       <circle cx="222" cy="282" r="9" fill="#101015" />
       <circle cx="378" cy="282" r="9" fill="#101015" />
+      <g fill="none" stroke="#15151a" strokeWidth="7" opacity="0.98">
+        <circle cx="219" cy="282" r="79" />
+        <circle cx="381" cy="282" r="79" />
+        <path d="M298 282h4" />
+        <path d="M140 280 Q128 275 119 284" />
+        <path d="M460 280 Q472 275 481 284" />
+      </g>
       <path d="M286 176 l-13 28 18 14 -16 24" fill="none" stroke="#7b2d35" strokeWidth="7" strokeLinecap="round" />
       <path
         className={`avatar-mouth mouth-${resolvedMouthShape}`}
@@ -127,39 +134,41 @@ export function Avatar({ character, state, size = 'lg', animationController }: A
       role="img"
       aria-label={`آواتار ${character.identity.displayName}`}
     >
-      <div className={`h-full w-full ${motionClass}`} data-avatar-motion={motionClass}>
-        {isVrm ? (
-          <VRMAvatar
-            source={source}
-            fallbackSource={character.avatar.fallbackSource ?? character.avatar.thumbnail}
-            alt={character.identity.displayName}
-            state={state}
-            animationController={animationController}
-          />
-        ) : isAnimated2D ? (
-          <AnimatedWizardAvatar
-            speaking={state === 'speaking'}
-            smiling={smiling}
-            variant={character.avatar.presetId ?? 'classic-bedroom'}
-            mouthShape={mouthShape}
-          />
-        ) : source && !failed ? (
-          <img
-            src={source}
-            alt={character.identity.displayName}
-            className="h-full w-full object-cover"
-            onError={() => setFailed(true)}
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-center text-amber-100/60">
-            <div>
-              <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full border border-amber-300/30 text-4xl">
-                {character.identity.displayName.charAt(0)}
+      <div className="avatar-entry h-full w-full">
+        <div className={`h-full w-full ${motionClass}`} data-avatar-motion={motionClass}>
+          {isVrm ? (
+            <VRMAvatar
+              source={source}
+              fallbackSource={character.avatar.fallbackSource ?? character.avatar.thumbnail}
+              alt={character.identity.displayName}
+              state={state}
+              animationController={animationController}
+            />
+          ) : isAnimated2D ? (
+            <AnimatedWizardAvatar
+              speaking={state === 'speaking'}
+              smiling={smiling}
+              variant={character.avatar.presetId ?? 'classic-bedroom'}
+              mouthShape={mouthShape}
+            />
+          ) : source && !failed ? (
+            <img
+              src={source}
+              alt={character.identity.displayName}
+              className="h-full w-full object-cover"
+              onError={() => setFailed(true)}
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-center text-amber-100/60">
+              <div>
+                <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-full border border-amber-300/30 text-4xl">
+                  {character.identity.displayName.charAt(0)}
+                </div>
+                <p>{character.identity.displayName}</p>
               </div>
-              <p>{character.identity.displayName}</p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
       <div className="absolute bottom-3 left-3 rounded-full border border-white/10 bg-black/55 px-3 py-1 text-xs text-amber-100 backdrop-blur">
         {stateLabel[state]}
