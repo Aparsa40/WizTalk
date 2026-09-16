@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { AvatarState, Character } from '../types';
+import type { AvatarAnimationController } from '../services/avatar-animation';
 import { getAvatarMotionClass } from '../services/avatar-motion';
+import { VRMAvatar } from './VRMAvatar';
 
 interface AvatarProps {
   character: Character;
   state: AvatarState;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   mouthShape?: string;
-  animationController?: unknown;
+  animationController?: AvatarAnimationController;
 }
 
 const sizes = {
@@ -62,17 +64,15 @@ function AnimatedWizardAvatar({ speaking, smiling, variant }: { speaking: boolea
   );
 }
 
-export function Avatar({ character, state, size = 'lg' }: AvatarProps) {
+export function Avatar({ character, state, size = 'lg', animationController }: AvatarProps) {
   const [failed, setFailed] = useState(false);
   const [smiling, setSmiling] = useState(false);
   const isAnimated2D = character.avatar.type === 'animated-2d';
   const isVrm = character.avatar.type === 'vrm';
   const source = character.avatar.source;
-  const visualSource = isVrm ? (character.avatar.thumbnail ?? character.avatar.fallbackSource ?? '') : source;
-  const variant = character.avatar.presetId ?? 'classic-bedroom';
   const motionClass = getAvatarMotionClass(state);
 
-  useEffect(() => setFailed(false), [character.identity.id, source, visualSource]);
+  useEffect(() => setFailed(false), [character.identity.id, source]);
 
   useEffect(() => {
     if (!isAnimated2D) return;
@@ -90,15 +90,24 @@ export function Avatar({ character, state, size = 'lg' }: AvatarProps) {
       className={`relative overflow-hidden rounded-4xl border border-amber-200/25 bg-black/25 shadow-2xl ${sizes[size]}`}
       data-character-id={character.identity.id}
       data-avatar-state={state}
+      data-avatar-type={character.avatar.type}
       role="img"
       aria-label={`آواتار ${character.identity.displayName}`}
     >
       <div className={`h-full w-full ${motionClass}`} data-avatar-motion={motionClass}>
-        {isAnimated2D ? (
-          <AnimatedWizardAvatar speaking={state === 'speaking'} smiling={smiling} variant={variant} />
-        ) : visualSource && !failed ? (
+        {isVrm ? (
+          <VRMAvatar
+            source={source}
+            fallbackSource={character.avatar.fallbackSource ?? character.avatar.thumbnail}
+            alt={character.identity.displayName}
+            state={state}
+            animationController={animationController}
+          />
+        ) : isAnimated2D ? (
+          <AnimatedWizardAvatar speaking={state === 'speaking'} smiling={smiling} variant={character.avatar.presetId ?? 'classic-bedroom'} />
+        ) : source && !failed ? (
           <img
-            src={visualSource}
+            src={source}
             alt={character.identity.displayName}
             className="h-full w-full object-cover"
             onError={() => setFailed(true)}
