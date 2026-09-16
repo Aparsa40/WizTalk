@@ -18,20 +18,19 @@ type Runtime = {
   VRMUtils: any;
 };
 
-const THREE_RUNTIME_URL = 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
-const GLTF_LOADER_RUNTIME_URL = 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
-const VRM_RUNTIME_URL = 'https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.5.5/lib/three-vrm.module.min.js';
-
 async function loadRuntime(): Promise<Runtime> {
-  // Load the runtime directly from the browser CDN. @vite-ignore prevents
-  // Vite's dev server from trying to resolve these URLs as npm packages.
-  // Keeping the specifiers in variables also prevents TypeScript from trying
-  // to resolve remote module declarations during `tsc --noEmit`.
-  // GLTFLoader and three-vrm still import "three" internally; the import map
-  // in index.html resolves that shared dependency in the browser.
-  const THREE = await import(/* @vite-ignore */ THREE_RUNTIME_URL) as any;
-  const { GLTFLoader } = await import(/* @vite-ignore */ GLTF_LOADER_RUNTIME_URL) as any;
-  const { VRMLoaderPlugin, VRMUtils } = await import(/* @vite-ignore */ VRM_RUNTIME_URL) as any;
+  const THREE = await import(
+    /* @vite-ignore */
+    'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js'
+  ) as any;
+  const { GLTFLoader } = await import(
+    /* @vite-ignore */
+    'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js'
+  ) as any;
+  const { VRMLoaderPlugin, VRMUtils } = await import(
+    /* @vite-ignore */
+    'https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.5.5/lib/three-vrm.module.min.js'
+  ) as any;
   return { THREE, GLTFLoader, VRMLoaderPlugin, VRMUtils };
 }
 
@@ -110,8 +109,8 @@ export function VRMAvatar({ source, fallbackSource, alt, state, animationControl
         const center = box.getCenter(new THREE.Vector3());
         const height = Math.max(size.y, 1);
         const distance = Math.max(
-          2.2,
-          (height * 0.62) / Math.tan((camera.fov * Math.PI) / 360),
+          1.8,
+          (height * 0.48) / Math.tan((camera.fov * Math.PI) / 360),
         );
         camera.position.set(
           center.x,
