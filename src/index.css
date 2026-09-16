@@ -12,8 +12,22 @@ button:disabled { cursor: not-allowed; }
 @keyframes wiztalk-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.08); } }
 @keyframes wiztalk-speaking { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(1px) scaleY(0.72); } }
 @keyframes wiztalk-avatar-enter {
-  0% { opacity: 0; transform: translate3d(90px, 0, 0) scale(0.97); }
+  0% { opacity: 0; transform: translate3d(110%, 0, 0) scale(0.9); }
+  72% { opacity: 1; transform: translate3d(-3%, -2px, 0) scale(0.985); }
+  84% { transform: translate3d(1.5%, 1px, 0) scale(1.005); }
+  92% { transform: translate3d(-0.6%, -1px, 0) scale(0.998); }
   100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes wiztalk-vrm-walk-in {
+  0% { transform: translate3d(110%, 0, 0) scale(0.9); opacity: 0; }
+  12% { opacity: 1; }
+  28% { transform: translate3d(78%, -3px, 0) scale(0.925); }
+  44% { transform: translate3d(48%, 2px, 0) scale(0.95); }
+  60% { transform: translate3d(22%, -3px, 0) scale(0.975); }
+  74% { transform: translate3d(4%, 1px, 0) scale(0.995); }
+  84% { transform: translate3d(-1.5%, -1px, 0) scale(1.005); }
+  92% { transform: translate3d(0.7%, 0, 0) scale(1); }
+  100% { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
 }
 
 @keyframes wiztalk-idle-float {
@@ -40,6 +54,7 @@ button:disabled { cursor: not-allowed; }
 }
 
 .avatar-entry { animation: wiztalk-avatar-enter .9s cubic-bezier(.22,.72,.26,1) both; }
+.avatar-entry--vrm { animation: wiztalk-vrm-walk-in 1.8s cubic-bezier(.2,.72,.22,1) both; }
 .avatar-blink { transform-box: fill-box; transform-origin: center; animation: wiztalk-blink 4.6s infinite; }
 [data-avatar-state='speaking'] .avatar-mouth { transform-box: fill-box; transform-origin: center; animation: wiztalk-speaking .34s infinite; }
 [data-avatar-state='speaking'] .avatar-face { filter: brightness(1.03); }
@@ -53,6 +68,7 @@ button:disabled { cursor: not-allowed; }
 
 @media (prefers-reduced-motion: reduce) {
   .avatar-entry,
+  .avatar-entry--vrm,
   .avatar-blink,
   [data-avatar-state='speaking'] .avatar-mouth,
   .avatar-motion { animation: none; }
