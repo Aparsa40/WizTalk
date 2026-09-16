@@ -11,14 +11,6 @@ export default defineConfig(() => {
         '@': path.resolve(__dirname, '.'),
       },
     },
-    build: {
-      // The VRM renderer uses the browser import map in index.html for its
-      // runtime-only Three.js dependencies. Keep these bare imports external
-      // so Rollup does not try to resolve/bundle them during production builds.
-      rollupOptions: {
-        external: [/^three(?:\/.*)?$/, /^@pixiv\/three-vrm$/],
-      },
-    },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
