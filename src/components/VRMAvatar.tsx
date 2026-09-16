@@ -177,7 +177,11 @@ export function VRMAvatar({ source, fallbackSource, alt, state, animationControl
       runtimeRenderer?.dispose?.();
       runtimeRenderer?.domElement?.remove?.();
     };
-  }, [source, alt, animationController, state]);
+  }, [source, alt, animationController]);
+
+  useEffect(() => {
+    rendererRef.current?.setState(state);
+  }, [state]);
 
   return (
     <div ref={hostRef} className="relative h-full w-full overflow-hidden" data-vrm-status={status}>
