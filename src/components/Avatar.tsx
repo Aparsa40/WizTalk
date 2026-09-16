@@ -87,7 +87,7 @@ export function Avatar({ character, state, size = 'lg' }: AvatarProps) {
 
   return (
     <div
-      className={`relative overflow-hidden rounded-[2rem] border border-amber-200/25 bg-black/25 shadow-2xl ${sizes[size]}`}
+      className={`relative overflow-hidden rounded-4xl border border-amber-200/25 bg-black/25 shadow-2xl ${sizes[size]}`}
       data-character-id={character.identity.id}
       data-avatar-state={state}
       role="img"
