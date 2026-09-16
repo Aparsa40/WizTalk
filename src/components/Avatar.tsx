@@ -134,7 +134,7 @@ export function Avatar({ character, state, size = 'lg', animationController }: A
       role="img"
       aria-label={`آواتار ${character.identity.displayName}`}
     >
-      <div className="avatar-entry h-full w-full">
+      <div className={`avatar-entry ${isVrm ? 'avatar-entry--vrm' : ''} h-full w-full`}>
         <div className={`h-full w-full ${motionClass}`} data-avatar-motion={motionClass}>
           {isVrm ? (
             <VRMAvatar
