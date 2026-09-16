@@ -165,18 +165,22 @@ export function VRMAvatar({ source, fallbackSource, alt, state, animationControl
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
         const height = Math.max(size.y, 1);
+
+        // Frame the character from the waist/chest upward so the face and glasses
+        // remain clearly visible instead of leaving most of the canvas on the legs.
+        const upperBodyTargetY = center.y + height * 0.18;
         const distance = Math.max(
-          1.8,
-          (height * 0.48) / Math.tan((camera.fov * Math.PI) / 360),
+          1.45,
+          (height * 0.30) / Math.tan((camera.fov * Math.PI) / 360),
         );
         camera.position.set(
           center.x,
-          center.y + height * 0.03,
+          upperBodyTargetY,
           center.z + distance,
         );
         camera.near = Math.max(0.01, distance / 100);
         camera.far = Math.max(50, distance * 8);
-        camera.lookAt(center.x, center.y + height * 0.03, center.z);
+        camera.lookAt(center.x, upperBodyTargetY, center.z);
         camera.updateProjectionMatrix();
 
         scene.add(currentVrm.scene);
@@ -262,7 +266,7 @@ export function VRMAvatar({ source, fallbackSource, alt, state, animationControl
   }, [state]);
 
   return (
-    <div ref={hostRef} className="relative h-full w-full overflow-hidden" data-vrm-status={status}>
+    <div ref={hostRef} className="avatar-vrm-stage relative h-full w-full overflow-hidden" data-vrm-status={status}>
       {status === 'loading' && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/15 text-center text-sm text-amber-100/75 backdrop-blur-[1px]">
           در حال بارگذاری آواتار سه‌بعدی…
