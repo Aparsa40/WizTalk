@@ -23,6 +23,7 @@ export function CharacterSettings({ character, onSave, onClose }: CharacterSetti
   const activeBackgroundIndex = Math.max(0, backgroundAssets.findIndex((asset) => asset.id === selectedBackgroundId));
   const activeAvatar = avatarAssets[activeAvatarIndex];
   const activeBackground = backgroundAssets[activeBackgroundIndex];
+  const avatarPreviewSource = activeAvatar?.thumbnail ?? (activeAvatar?.type === 'vrm' ? activeAvatar.fallbackSource : activeAvatar?.source);
 
   const moveAvatar = (direction: -1 | 1) => {
     if (!avatarAssets.length) return;
@@ -47,7 +48,7 @@ export function CharacterSettings({ character, onSave, onClose }: CharacterSetti
         greeting: greeting.trim() || character.identity.greeting,
       },
       avatar: selectedAvatar
-        ? { ...character.avatar, selectedId: selectedAvatar.id, type: selectedAvatar.type, source: selectedAvatar.source, fallbackSource: selectedAvatar.fallbackSource }
+        ? { ...character.avatar, selectedId: selectedAvatar.id, type: selectedAvatar.type, source: selectedAvatar.source, thumbnail: selectedAvatar.thumbnail, fallbackSource: selectedAvatar.fallbackSource }
         : character.avatar,
       backgrounds: selectedBackground
         ? { ...character.backgrounds, selectedId: selectedBackground.id }
@@ -85,13 +86,13 @@ export function CharacterSettings({ character, onSave, onClose }: CharacterSetti
           <div className="flex items-center gap-2"><UserRound className="h-5 w-5 text-amber-300"/><div><h3 className="font-semibold text-amber-200">Avatar</h3><p className="mt-1 text-xs text-amber-50/50">فقط ظاهر شخصیت را انتخاب کن؛ Background هیچ وابستگی به این انتخاب ندارد.</p></div></div>
           {activeAvatar ? <div className="relative overflow-hidden rounded-2xl border border-amber-200/20 bg-black/20 p-3">
             <div className="relative flex aspect-[16/9] items-center justify-center overflow-hidden rounded-xl bg-black/25">
-              <img src={activeAvatar.source} alt={activeAvatar.name} className="h-[88%] w-auto max-w-[72%] object-contain drop-shadow-2xl" onError={(event) => { if (activeAvatar.fallbackSource) event.currentTarget.src = activeAvatar.fallbackSource; }} />
+              {avatarPreviewSource ? <img src={avatarPreviewSource} alt={activeAvatar.name} className="h-[88%] w-auto max-w-[72%] object-contain drop-shadow-2xl" onError={(event) => { if (activeAvatar.fallbackSource) event.currentTarget.src = activeAvatar.fallbackSource; }} /> : <div className="text-sm text-amber-50/50">پیش‌نمایش Avatar در دسترس نیست.</div>}
               <button type="button" onClick={() => moveAvatar(-1)} aria-label="آواتار قبلی" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/55 p-2 backdrop-blur hover:bg-black/75"><ChevronRight className="h-5 w-5" /></button>
               <button type="button" onClick={() => moveAvatar(1)} aria-label="آواتار بعدی" className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/55 p-2 backdrop-blur hover:bg-black/75"><ChevronLeft className="h-5 w-5" /></button>
             </div>
             <div className="mt-3 flex items-center justify-between gap-3"><div><p className="font-semibold text-amber-100">{activeAvatar.name}</p><p className="text-xs text-amber-50/50">{activeAvatarIndex + 1} از {avatarAssets.length} · {activeAvatar.type}</p></div><button type="button" onClick={() => setSelectedAvatarId(activeAvatar.id)} className="flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-sm font-bold text-[#21102e] hover:bg-amber-400"><Check className="h-4 w-4"/>انتخاب</button></div>
           </div> : <p className="rounded-xl border border-white/10 p-4 text-sm text-amber-50/55">برای این شخصیت Avatar ثبت نشده است.</p>}
-          {avatarAssets.length > 1 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{avatarAssets.map((asset: AvatarAsset) => <button key={asset.id} type="button" onClick={() => setSelectedAvatarId(asset.id)} className={`overflow-hidden rounded-xl border text-right transition ${selectedAvatarId === asset.id ? 'border-amber-300/60 ring-2 ring-amber-300/20' : 'border-white/10 hover:border-white/25'}`}><div className="flex aspect-[4/3] items-center justify-center bg-black/20"><img src={asset.source} alt={asset.name} className="h-full w-full object-contain" /></div><div className="px-3 py-2 text-xs font-semibold">{asset.name}</div></button>)}</div>}
+          {avatarAssets.length > 1 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{avatarAssets.map((asset: AvatarAsset) => { const preview = asset.thumbnail ?? (asset.type === 'vrm' ? asset.fallbackSource : asset.source); return <button key={asset.id} type="button" onClick={() => setSelectedAvatarId(asset.id)} className={`overflow-hidden rounded-xl border text-right transition ${selectedAvatarId === asset.id ? 'border-amber-300/60 ring-2 ring-amber-300/20' : 'border-white/10 hover:border-white/25'}`}><div className="flex aspect-[4/3] items-center justify-center bg-black/20">{preview ? <img src={preview} alt={asset.name} className="h-full w-full object-contain" /> : <span className="text-xs text-amber-50/50">No preview</span>}</div><div className="px-3 py-2 text-xs font-semibold">{asset.name}</div></button>; })}</div>}
         </section>
 
         <section className="space-y-4 rounded-2xl border border-white/10 bg-black/10 p-4">
