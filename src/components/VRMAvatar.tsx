@@ -277,7 +277,7 @@ export function VRMAvatar({ source, fallbackSource, alt, state, animationControl
           <div className="max-w-sm">
             {fallbackSource ? <img src={fallbackSource} alt={alt} className="mx-auto mb-3 max-h-64 w-full object-contain" /> : null}
             <p className="text-sm text-amber-100/80">نمایش آواتار سه‌بعدی انجام نشد.</p>
-            <p className="mt-1 break-words text-xs text-amber-100/45">{errorMessage}</p>
+            <p className="mt-1 wrap-break-word text-xs text-amber-100/45">{errorMessage}</p>
           </div>
         </div>
       )}
