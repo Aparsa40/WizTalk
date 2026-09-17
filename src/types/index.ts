@@ -31,6 +31,8 @@ export interface BackgroundAsset {
 export interface AvatarConfig {
   type: AvatarType;
   source: string;
+  /** Optional preview image used when the selected avatar source is not directly renderable as an image, such as a VRM asset. */
+  thumbnail?: string;
   fallbackSource?: string;
   idleSource?: string;
   listeningSource?: string;

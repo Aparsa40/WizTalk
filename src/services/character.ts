@@ -37,15 +37,27 @@ function applyUserSettings(character: Character): Character {
   const override = readCharacterSettings()[character.identity.id];
   if (!override) return character;
 
+  const selectedAvatarId = override.avatar?.selectedId;
+  const selectedAvatar = character.avatar.assets?.find((asset) => asset.id === selectedAvatarId);
+  const validSelectedAvatarId = selectedAvatar?.id ?? character.avatar.selectedId ?? character.avatar.assets?.[0]?.id;
+
   return {
     ...character,
     identity: { ...character.identity, ...(override.identity ?? {}) },
-    avatar: { ...character.avatar, ...(override.avatar ?? {}) },
-    // Background assets are owned by the Character's built-in/custom definition.
-    // Only the user's selected background is persisted as an override. This is
-    // important for built-in characters: an older localStorage entry may contain
-    // the two temporary SVG backgrounds, but it must never replace the current
-    // asset catalog declared by data/characters/<character>.json.
+    avatar: {
+      ...character.avatar,
+      selectedId: validSelectedAvatarId,
+      ...(selectedAvatar ? {
+        type: selectedAvatar.type,
+        source: selectedAvatar.source,
+        thumbnail: selectedAvatar.thumbnail,
+        fallbackSource: selectedAvatar.fallbackSource,
+        animationSpeed: selectedAvatar.animationSpeed,
+        customAnimationData: selectedAvatar.customAnimationData,
+      } : {}),
+    },
+    // Built-in characters own their asset catalogs. Only the selected item is persisted as a user override.
+    // This prevents an older localStorage entry from resurrecting removed built-in assets.
     backgrounds: {
       ...character.backgrounds,
       selectedId: override.backgrounds?.selectedId ?? character.backgrounds.selectedId,
