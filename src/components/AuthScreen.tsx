@@ -27,8 +27,8 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
     }
   };
 
-  return <main dir="rtl" className="flex min-h-[100dvh] items-center justify-center overflow-y-auto bg-[#12091f] px-4 py-8 text-amber-50 sm:px-6">
-    <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.06] p-6 shadow-2xl backdrop-blur-xl sm:p-8">
+  return <main dir="rtl" className="min-h-[100dvh] overflow-y-auto bg-[#12091f] px-4 py-8 text-amber-50 sm:px-6">
+    <div className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-md items-center py-4"><div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/[0.06] p-6 shadow-2xl backdrop-blur-xl sm:p-8">
       <div className="text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-300/25 bg-amber-400/10 text-3xl">✦</div>
         <p className="mt-4 text-xs uppercase tracking-[.25em] text-amber-300/60">WizTalk</p>
@@ -48,6 +48,6 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
           {mode === 'login' ? 'حساب ندارم؛ ساخت حساب' : 'قبلاً حساب ساخته‌ام؛ ورود'}
         </button>
       </div>
-    </div>
+    </div></div>
   </main>;
 }
