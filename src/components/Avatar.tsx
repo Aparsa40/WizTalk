@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AvatarState, Character } from '../types';
 import type { AvatarAnimationController } from '../services/avatar-animation';
 import type { MouthShape } from '../services/avatar-animation';
@@ -18,7 +18,7 @@ const sizes = {
   sm: 'h-44 w-36',
   md: 'h-64 w-52',
   lg: 'h-[28rem] w-72',
-  xl: 'h-[min(48vh,34rem)] w-full max-w-[28rem] min-h-[17rem]',
+  xl: 'h-[clamp(15rem,48vh,34rem)] w-[clamp(12rem,68vw,28rem)] max-w-full',
 };
 
 const stateLabel: Record<AvatarState, string> = {
@@ -52,7 +52,8 @@ function AnimatedWizardAvatar({ speaking, smiling, variant, mouthShape }: { spea
       </defs>
       <rect width="600" height="760" rx="48" fill="url(#wizard-bg)" />
       <circle cx="300" cy="285" r="150" fill="#dca27b" />
-      <path d="M150 245 Q160 105 300 90 Q440 105 450 250 L405 205 Q360 155 300 170 Q230 150 180 225Z" fill="#17151b" />
+      <path d="M142 252 Q128 190 158 132 Q185 86 236 102 Q270 72 310 98 Q355 70 382 108 Q438 95 456 154 Q474 207 454 266 L420 224 Q402 192 366 178 L390 138 Q350 166 322 132 Q294 171 262 132 Q235 170 198 154 Q206 198 177 229Z" fill="#111116" />
+      <path d="M166 178 Q142 145 171 120 M208 148 Q194 112 224 94 M254 132 Q244 90 278 82 M302 132 Q308 88 338 91 M350 140 Q366 96 397 111 M396 170 Q426 137 444 168" fill="none" stroke="#25232b" strokeWidth="14" strokeLinecap="round" />
       <g className="avatar-blink" fill="none" stroke="#1b1b22" strokeWidth="12">
         <rect x="157" y="250" width="125" height="64" rx="30" />
         <rect x="318" y="250" width="125" height="64" rx="30" />
@@ -87,6 +88,7 @@ export function Avatar({ character, state, size = 'lg', animationController }: A
   const [failed, setFailed] = useState(false);
   const [smiling, setSmiling] = useState(false);
   const [mouthShape, setMouthShape] = useState<MouthShape>('closed');
+  const hasSpokenRef = useRef(false);
   const isAnimated2D = character.avatar.type === 'animated-2d';
   const isVrm = character.avatar.type === 'vrm';
   const source = character.avatar.source;
@@ -116,14 +118,19 @@ export function Avatar({ character, state, size = 'lg', animationController }: A
 
   useEffect(() => {
     if (!isAnimated2D) return;
-
-    const smileTimer = window.setInterval(() => {
+    if (state === 'speaking' && !hasSpokenRef.current) {
+      hasSpokenRef.current = true;
       setSmiling(true);
-      window.setTimeout(() => setSmiling(false), 900);
-    }, 8500);
+      const timer = window.setTimeout(() => setSmiling(false), 1200);
+      return () => window.clearTimeout(timer);
+    }
+    return undefined;
+  }, [isAnimated2D, state]);
 
-    return () => window.clearInterval(smileTimer);
-  }, [isAnimated2D]);
+  useEffect(() => {
+    hasSpokenRef.current = false;
+    setSmiling(false);
+  }, [character.identity.id, source]);
 
   return (
     <div
