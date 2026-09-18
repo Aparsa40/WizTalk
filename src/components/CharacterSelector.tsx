@@ -10,7 +10,7 @@ interface CharacterSelectorProps {
 }
 
 export function CharacterSelector({ characters, onSelect, onManage, onLogout }: CharacterSelectorProps) {
-  return <section dir="rtl" className="relative flex min-h-[100dvh] flex-col overflow-x-hidden bg-[#12091f] px-4 py-6 text-amber-50 sm:px-8 sm:py-10 lg:py-12">
+  return <section dir="rtl" className="relative flex min-h-[100dvh] flex-col overflow-x-hidden overflow-y-auto bg-[#12091f] px-4 py-6 text-amber-50 sm:px-8 sm:py-10 lg:py-12">
     <div className="pointer-events-none absolute inset-0 opacity-50"><div className="absolute -left-32 -top-32 h-72 w-72 rounded-full bg-violet-900/60 blur-3xl sm:h-96 sm:w-96"/><div className="absolute -right-20 top-1/3 h-72 w-72 rounded-full bg-amber-900/40 blur-3xl sm:h-96 sm:w-96"/><div className="absolute bottom-0 left-1/3 h-56 w-56 rounded-full bg-sky-900/30 blur-3xl sm:h-72 sm:w-72"/></div>
     <div className="relative z-10 mx-auto mb-7 flex w-full max-w-6xl flex-col gap-5 sm:mb-10 sm:gap-6 md:flex-row md:items-center md:justify-between">
       <div className="min-w-0"><p className="mb-2 flex items-center gap-2 text-xs text-amber-300/70 sm:text-sm"><Sparkles className="h-4 w-4 shrink-0"/>WizTalk · گفت‌وگوی شخصیت‌محور</p><h1 className="font-serif text-3xl font-bold leading-tight text-amber-300 sm:text-5xl lg:text-6xl">هم‌صحبت جادویی</h1><p className="mt-3 max-w-xl text-sm leading-6 text-amber-50/65 sm:text-base sm:leading-7 lg:text-lg">شخصیتت را انتخاب کن؛ هر کدام هویت، Avatar، دانش و Sessionهای مستقل خودش را دارد.</p></div>
