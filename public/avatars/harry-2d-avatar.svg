@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 900" role="img" aria-labelledby="title desc">
+<title id="title">WizTalk Harry 2D avatar</title>
+<desc id="desc">A full-body stylized character with dark hair, round glasses, blinking eyes and an animated mouth.</desc>
+<defs>
+<linearGradient id="coat" x1="0" x2="1"><stop stop-color="#20293f"/><stop offset="1" stop-color="#0f1728"/></linearGradient>
+<linearGradient id="skin"><stop stop-color="#f0bd98"/><stop offset="1" stop-color="#c98261"/></linearGradient>
+</defs>
+<ellipse cx="300" cy="850" rx="175" ry="24" fill="#000" opacity=".28"/>
+<path d="M112 850Q120 620 205 555Q300 520 395 555Q480 620 488 850Z" fill="url(#coat)"/>
+<path d="M210 575L300 690L390 575L355 850H245Z" fill="#26334e"/>
+<path d="M250 585L300 680L350 585L330 850H270Z" fill="#eeeae1"/>
+<path d="M260 600L300 665L340 600L328 630L300 655L272 630Z" fill="#7f2331"/>
+<ellipse cx="300" cy="350" rx="130" ry="148" fill="url(#skin)"/>
+<path d="M170 350Q158 190 224 130Q302 62 380 126Q444 182 430 350Q392 278 348 245Q300 212 242 250Q205 278 170 350Z" fill="#12151d"/>
+<path d="M205 176Q255 102 330 118Q395 130 420 218Q365 178 318 180Q260 180 205 225Z" fill="#1b1d25"/>
+<path d="M220 245Q250 225 280 244M320 244Q350 225 380 245" fill="none" stroke="#2a2020" stroke-width="10" stroke-linecap="round"/>
+<g fill="none" stroke="#1a1b20" stroke-width="10"><rect x="190" y="260" width="105" height="72" rx="30"/><rect x="305" y="260" width="105" height="72" rx="30"/><path d="M295 282Q300 274 305 282M190 282Q162 276 154 264M410 282Q438 276 446 264"/></g>
+<ellipse cx="242" cy="296" rx="8" ry="11" fill="#111"><animate attributeName="ry" values="11;11;1;11;11" keyTimes="0;.93;.96;.99;1" dur="4.6s" repeatCount="indefinite"/></ellipse>
+<ellipse cx="358" cy="296" rx="8" ry="11" fill="#111"><animate attributeName="ry" values="11;11;1;11;11" keyTimes="0;.93;.96;.99;1" dur="4.6s" repeatCount="indefinite"/></ellipse>
+<path d="M300 296L286 352Q298 362 312 352" fill="none" stroke="#9a5e4b" stroke-width="7" stroke-linecap="round"/>
+<path d="M278 344Q300 350 322 344" fill="none" stroke="#6d3039" stroke-width="7" stroke-linecap="round"><animate attributeName="d" values="M278 344Q300 350 322 344;M274 343Q300 357 326 343;M278 344Q300 350 322 344" dur=".48s" repeatCount="indefinite"/></path>
+<path d="M175 700Q185 620 230 585M425 700Q415 620 370 585" fill="none" stroke="#111827" stroke-width="34" stroke-linecap="round"/>
+<path d="M236 735Q300 760 364 735" fill="none" stroke="#0d1424" stroke-width="18" stroke-linecap="round"/>
+</svg>

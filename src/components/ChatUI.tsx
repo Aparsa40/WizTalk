@@ -17,6 +17,7 @@ type RecognitionController = { continuous?: boolean; interimResults?: boolean; o
 export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [sessionId, setSessionId] = useState('');
+  const [sessionTitle, setSessionTitle] = useState('گفت‌وگوی جدید');
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -265,7 +266,7 @@ export function ChatUI({ character, onBack, onOpenSettings }: ChatUIProps) {
   return <div dir="rtl" className="flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-[#0d0b12] text-amber-50" style={backgroundStyle}>
     <header className="z-20 flex shrink-0 items-center justify-between border-b border-white/10 bg-black/35 px-3 py-2.5 backdrop-blur-md sm:px-4 sm:py-3">
       <button type="button" onClick={onBack} aria-label="بازگشت به انتخاب شخصیت" className="rounded-full p-2 hover:bg-white/10"><ArrowRight className="h-5 w-5 sm:h-6 sm:w-6"/></button>
-      <div className="min-w-0 px-2 text-center"><h2 className="truncate font-serif text-base font-bold text-amber-200 sm:text-xl">{character.identity.displayName}</h2><span className="hidden text-xs text-amber-50/60 sm:inline">هر بار ورود = Session مستقل</span></div>
+      <button type="button" onClick={()=>setShowSessions(true)} className="min-w-0 max-w-[58vw] px-2 text-center"><h2 className="truncate font-serif text-base font-bold text-amber-200 sm:text-xl">{character.identity.displayName}</h2><span className="block truncate text-[10px] text-amber-50/60 sm:text-xs">{sessionTitle}</span></button>
       <div className="flex items-center gap-1"><button type="button" onClick={()=>setShowSessions(true)} aria-label="جلسه‌های گفتگو" className="rounded-full p-2 hover:bg-white/10"><History className="h-5 w-5 sm:h-6 sm:w-6"/></button><button type="button" onClick={onOpenSettings} aria-label="تنظیمات شخصیت" className="rounded-full p-2 hover:bg-white/10"><SettingsIcon className="h-5 w-5 sm:h-6 sm:w-6"/></button></div>
     </header>
 
