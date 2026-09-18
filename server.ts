@@ -155,38 +155,6 @@ app.get('/api/sessions/:sessionId/download', (req, res) => {
   return res.send(payload);
 });
 
-app.get('/api/knowledge/:characterId', async (req, res) => {
-  const user = requireUser(req, res);
-  if (!user) return;
-  const character = await getCharacter(req.params.characterId);
-  if (!character) return res.status(404).json({ error: 'شخصیت پیدا نشد.' });
-  return res.json(listKnowledge(character.identity.id));
-});
-
-app.post('/api/knowledge/:characterId', async (req, res) => {
-  const user = requireUser(req, res);
-  if (!user) return;
-  const character = await getCharacter(req.params.characterId);
-  if (!character) return res.status(404).json({ error: 'شخصیت پیدا نشد.' });
-  const { title, content } = req.body as { title?: unknown; content?: unknown };
-  if (typeof content !== 'string' || !content.trim()) return res.status(400).json({ error: 'محتوای دانش خالی است.' });
-  try {
-    return res.status(201).json(addKnowledge(character.identity.id, typeof title === 'string' ? title : '', content));
-  } catch {
-    return res.status(400).json({ error: 'ذخیره دانش ناموفق بود.' });
-  }
-});
-
-app.delete('/api/knowledge/:characterId/:documentId', async (req, res) => {
-  const user = requireUser(req, res);
-  if (!user) return;
-  const character = await getCharacter(req.params.characterId);
-  if (!character) return res.status(404).json({ error: 'شخصیت پیدا نشد.' });
-  const deleted = deleteKnowledge(req.params.documentId, character.identity.id);
-  if (!deleted) return res.status(404).json({ error: 'سند دانش پیدا نشد.' });
-  return res.json({ ok: true });
-});
-
 app.post('/api/chat', chatRateLimiter, async (req, res) => {
   const user = requireUser(req, res);
   if (!user) return;
