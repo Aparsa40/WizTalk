@@ -38,7 +38,7 @@ function createRoundGlasses(THREE: any, head: any, modelHeight: number) {
   const frameRadius = Math.max(0.055, Math.min(0.095, modelHeight * 0.055));
   const frameTube = frameRadius * 0.075;
   const eyeSpacing = frameRadius * 2.15;
-  const lensZ = -Math.max(0.045, modelHeight * 0.035);
+  const lensZ = -Math.max(0.075, modelHeight * 0.055);
   const bridgeWidth = eyeSpacing * 0.72;
 
   const frameMaterial = new THREE.MeshStandardMaterial({
@@ -85,7 +85,7 @@ function createRoundGlasses(THREE: any, head: any, modelHeight: number) {
 
   group.add(leftArm, rightArm);
   head.add(group);
-  group.position.set(0, modelHeight * 0.008, 0);
+  group.position.set(0, modelHeight * 0.018, 0);
 
   return group;
 }
@@ -107,6 +107,7 @@ export function VRMAvatar({ source, fallbackSource, alt, state, animationControl
     let glassesGroup: any;
     let controllerDetach: (() => void) | undefined;
     let resizeObserver: ResizeObserver | undefined;
+    let fitCamera: (() => void) | undefined;
 
     const rendererAdapter = new VRMAvatarRenderer();
     rendererRef.current = rendererAdapter;
@@ -159,7 +160,10 @@ export function VRMAvatar({ source, fallbackSource, alt, state, animationControl
         VRMUtils.removeUnnecessaryVertices?.(gltf.scene);
         VRMUtils.combineSkeletons?.(gltf.scene);
         VRMUtils.combineMorphs?.(currentVrm);
-        currentVrm.scene.traverse((object: any) => { object.frustumCulled = false; });
+        currentVrm.scene.traverse((object: any) => {
+          object.frustumCulled = false;
+          if (/glasses|eyeglass|spectacle/i.test(String(object.name ?? ''))) object.visible = false;
+        });
 
         const box = new THREE.Box3().setFromObject(currentVrm.scene);
         const size = box.getSize(new THREE.Vector3());
@@ -168,20 +172,23 @@ export function VRMAvatar({ source, fallbackSource, alt, state, animationControl
 
         // Frame the character from the waist/chest upward so the face and glasses
         // remain clearly visible instead of leaving most of the canvas on the legs.
-        const upperBodyTargetY = center.y + height * 0.18;
-        const distance = Math.max(
-          1.45,
-          (height * 0.30) / Math.tan((camera.fov * Math.PI) / 360),
-        );
-        camera.position.set(
-          center.x,
-          upperBodyTargetY,
-          center.z + distance,
-        );
-        camera.near = Math.max(0.01, distance / 100);
-        camera.far = Math.max(50, distance * 8);
-        camera.lookAt(center.x, upperBodyTargetY, center.z);
-        camera.updateProjectionMatrix();
+        const upperBodyTargetY = center.y + height * 0.12;
+        fitCamera = () => {
+          const width = Math.max(1, host.clientWidth);
+          const viewportHeight = Math.max(1, host.clientHeight);
+          const aspect = width / viewportHeight;
+          const frameHeight = height * (aspect < 0.8 ? 0.72 : 0.64);
+          const verticalDistance = frameHeight / (2 * Math.tan((camera.fov * Math.PI) / 360));
+          const horizontalFov = 2 * Math.atan(Math.tan((camera.fov * Math.PI) / 360) * Math.max(aspect, 0.25));
+          const horizontalDistance = (size.x * 1.22) / (2 * Math.tan(horizontalFov / 2));
+          const distance = Math.max(1.65, verticalDistance, horizontalDistance);
+          camera.aspect = aspect;
+          camera.position.set(center.x, upperBodyTargetY, center.z + distance * 1.06);
+          camera.near = Math.max(0.02, distance / 120);
+          camera.far = Math.max(50, distance * 8);
+          camera.lookAt(center.x, upperBodyTargetY, center.z);
+          camera.updateProjectionMatrix();
+        };
 
         scene.add(currentVrm.scene);
 
@@ -197,10 +204,9 @@ export function VRMAvatar({ source, fallbackSource, alt, state, animationControl
 
         const resize = () => {
           const width = Math.max(1, host.clientWidth);
-          const height = Math.max(1, host.clientHeight);
-          runtimeRenderer.setSize(width, height, false);
-          camera.aspect = width / height;
-          camera.updateProjectionMatrix();
+          const viewportHeight = Math.max(1, host.clientHeight);
+          runtimeRenderer.setSize(width, viewportHeight, false);
+          fitCamera?.();
         };
 
         resize();
