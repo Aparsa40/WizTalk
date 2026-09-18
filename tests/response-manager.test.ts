@@ -140,6 +140,20 @@ test('empty provider responses are invalid and continue the chain', async () => 
   assert.deepEqual(calls, ['openrouter', 'huggingface']);
 });
 
+test('transient provider failures retry once before moving to the next model', async () => {
+  const calls: Provider[] = [];
+  const manager = new ResponseManager(async (provider) => {
+    calls.push(provider);
+    if (provider === 'openrouter') throw new Error('network timeout');
+    return 'پاسخ بعد از retry';
+  });
+
+  const result = await manager.generate({ message: 'سلام', character: character(), mode: 'text' });
+  assert.equal(result.provider, 'huggingface');
+  assert.equal(result.response, 'پاسخ بعد از retry');
+  assert.deepEqual(calls, ['openrouter', 'openrouter', 'huggingface']);
+});
+
 test('manager timeout remains bounded', () => {
   assert.ok(DEFAULT_RESPONSE_TIMEOUT_MS > 0);
   assert.ok(DEFAULT_RESPONSE_TIMEOUT_MS <= 30000);
