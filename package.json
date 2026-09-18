@@ -41,7 +41,20 @@
     "tsx": "^4.21.0",
     "typescript": "~5.8.2"
   },
-  "keywords": ["persian","ai","character","avatar","voice","chat","wizard","conversational","modular-ai"],
+  "keywords": [
+    "persian",
+    "ai",
+    "character",
+    "avatar",
+    "voice",
+    "chat",
+    "wizard",
+    "conversational",
+    "modular-ai"
+  ],
   "author": "Amir Parsa",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.5.0"
+  }
 }

@@ -73,3 +73,16 @@ button:disabled { cursor: not-allowed; }
   [data-avatar-state='speaking'] .avatar-mouth,
   .avatar-motion { animation: none; }
 }
+
+
+.avatar-image-blink { transform-box: fill-box; transform-origin: center; animation: wiztalk-blink 4.6s infinite; }
+.avatar-image-mouth { transform-box: fill-box; transform-origin: center; }
+.avatar-image-mouth--speaking { animation: wiztalk-speaking .28s infinite; }
+img, svg, canvas, video { max-width: 100%; }
+input, textarea, select, button { min-width: 0; }
+textarea { overflow-wrap: anywhere; }
+main, section, article, aside { min-width: 0; }
+@media (max-width: 640px) {
+  html, body, #root { min-height: 100%; max-width: 100%; overflow-x: hidden; }
+  .avatar-image-mouth--speaking { animation-duration: .22s; }
+}

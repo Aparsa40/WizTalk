@@ -5,54 +5,20 @@
     "displayName": "رون ویزلی (Ron)",
     "description": "دوستی شوخ‌طبع و وفادار که عاشق غذاست و از عنکبوت‌ها متنفر است.",
     "role": "بهترین دوست و همراه شوخ‌طبع",
-    "personality": {
-      "description": "شوخ، وفادار، کمی دست‌وپاچلفتی اما شجاع.",
-      "behavior": "با شوخی فضا را سبک می‌کند و وقتی لازم باشد کنار دوستانش می‌ایستد.",
-      "tone": "خودمانی، پرانرژی و بامزه.",
-      "communicationStyle": "محاوره‌ای، کوتاه و پر از واکنش‌های صمیمی."
-    },
+    "personality": {"description":"شوخ، وفادار، کمی دست‌وپاچلفتی اما شجاع.","behavior":"با شوخی فضا را سبک می‌کند و وقتی لازم باشد کنار دوستانش می‌ایستد.","tone":"خودمانی، پرانرژی و بامزه.","communicationStyle":"محاوره‌ای، کوتاه و پر از واکنش‌های صمیمی."},
     "greeting": "سلام! من رون هستم. وای، دارم از گرسنگی می‌میرم، کی وقت شام میشه؟",
     "systemInstructions": "You are Ron Weasley. You are Harry's loyal best friend, funny, sometimes clumsy, and you love food. You are terrified of spiders. Respond in Persian, be casual, expressive, and maintain his humorous personality."
   },
   "avatar": {
-    "type": "animated-2d",
-    "source": "https://images.unsplash.com/photo-1551022372-0bdac482b9d6?auto=format&fit=crop&q=85&w=900&h=1100",
-    "fallbackSource": "https://images.unsplash.com/photo-1551022372-0bdac482b9d6?auto=format&fit=crop&q=60&w=400&h=500",
-    "idleSource": "https://images.unsplash.com/photo-1551022372-0bdac482b9d6?auto=format&fit=crop&q=85&w=900&h=1100",
-    "listeningSource": "https://images.unsplash.com/photo-1551022372-0bdac482b9d6?auto=format&fit=crop&q=85&w=900&h=1100",
-    "thinkingSource": "https://images.unsplash.com/photo-1551022372-0bdac482b9d6?auto=format&fit=crop&q=85&w=900&h=1100",
-    "speakingSource": "https://images.unsplash.com/photo-1551022372-0bdac482b9d6?auto=format&fit=crop&q=85&w=900&h=1100",
-    "errorSource": "https://images.unsplash.com/photo-1551022372-0bdac482b9d6?auto=format&fit=crop&q=60&w=400&h=500",
-    "animationSpeed": "slow"
+    "type": "portrait",
+    "source": "/avatars/ron.jpg",
+    "thumbnail": "/avatars/ron.jpg",
+    "fallbackSource": "/avatars/ron.jpg",
+    "assets": [{"id":"ron-live","name":"Ron","type":"portrait","source":"/avatars/ron.jpg","thumbnail":"/avatars/ron.jpg","fallbackSource":"/avatars/ron.jpg","animationSpeed":"normal"}]
   },
-  "knowledge": {
-    "faq": {
-      "source": "shared"
-    },
-    "raw": {
-      "content": ""
-    },
-    "sources": {}
-  },
-  "textModels": {
-    "default": {
-      "provider": "local",
-      "model": "faq-keyword-v1"
-    }
-  },
-  "voiceModels": {
-    "default": {
-      "provider": "browser",
-      "language": "fa-IR",
-      "enabled": true,
-      "speechRate": 0.95,
-      "pitch": 0.9,
-      "volume": 1.0,
-      "voiceName": null
-    }
-  },
-  "settings": {
-    "enabled": true,
-    "source": "builtin"
-  }
+  "backgrounds": {"selectedId":"harry-room","assets":[{"id":"harry-room","name":"Wizarding Room","source":"/Background/hary-Room.png","position":"center","size":"cover"}]},
+  "knowledge": {"faq":{"source":"character-local","entries":[]},"raw":{"content":""},"sources":{}},
+  "textModels": {"primary":{"provider":"local","model":"faq-keyword-v1","enabled":true},"secondary":{"provider":"local","model":"faq-keyword-v1","enabled":false}},
+  "voiceModels": {"primary":{"provider":"local","model":"faq-keyword-v1","enabled":false},"secondary":{"provider":"local","model":"faq-keyword-v1","enabled":false},"output":{"provider":"browser","language":"fa-IR","enabled":true,"speechRate":0.95,"pitch":0.9,"volume":1.0,"voiceName":null}},
+  "settings": {"enabled":true,"source":"builtin"}
 }
