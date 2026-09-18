@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { AppState, Character } from '../types';
-import { CharacterManager } from './CharacterManager';
 import { X } from 'lucide-react';
 
 interface SettingsProps { appState: AppState; characters: Character[]; onCharactersChange: (characters: Character[]) => void; onUpdateState: (updates: Partial<AppState>) => void; onClose: () => void; }
 
 export function Settings({ appState, characters, onCharactersChange, onUpdateState, onClose }: SettingsProps) {
   const [voiceEnabled, setVoiceEnabled] = useState(appState.voiceEnabled);
-  const [showManager, setShowManager] = useState(false);
   const save = () => { onUpdateState({ voiceEnabled }); onClose(); };
 
   return (
@@ -20,12 +18,10 @@ export function Settings({ appState, characters, onCharactersChange, onUpdateSta
           <div className="mt-5 space-y-3 sm:mt-7 sm:space-y-5">
             <div className="rounded-2xl border border-white/10 bg-black/10 p-3 sm:p-4"><p className="text-sm text-amber-100">مسیر پاسخ‌گویی</p><p className="mt-1 text-xs leading-5 text-amber-50/50">انتخاب Character تعیین می‌کند از چه تنظیمات داخلی و مسیر مدل استفاده شود. Provider و Model از رابط کاربری قابل تغییر نیستند.</p></div>
             <label className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/10 p-3 sm:p-4"><span className="min-w-0"><span className="block text-sm">خواندن پاسخ با صدا</span><span className="mt-1 block text-xs leading-5 text-amber-50/45">از تنظیمات Voice خود Character استفاده می‌شود.</span></span><input type="checkbox" checked={voiceEnabled} onChange={e => setVoiceEnabled(e.target.checked)} className="h-5 w-5 shrink-0" /></label>
-            <button type="button" onClick={() => setShowManager(true)} className="w-full rounded-xl border border-amber-300/30 px-4 py-3 text-sm text-amber-200">مدیریت شخصیت‌ها ({characters.length})</button>
             <button type="button" onClick={save} className="w-full rounded-xl bg-amber-500 py-3 font-bold text-[#21102e]">ذخیره تنظیمات</button>
           </div>
         </div>
       </div>
-      {showManager && <CharacterManager characters={characters} onChange={onCharactersChange} onClose={() => setShowManager(false)} />}
     </>
   );
 }
