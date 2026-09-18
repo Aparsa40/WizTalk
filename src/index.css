@@ -86,3 +86,7 @@ main, section, article, aside { min-width: 0; }
   html, body, #root { min-height: 100%; max-width: 100%; overflow-x: hidden; }
   .avatar-image-mouth--speaking { animation-duration: .22s; }
 }
+
+.harry2d-mouth { transform-box: fill-box; transform-origin: center; }
+.harry2d-mouth--speaking { animation: wiztalk-speaking .24s infinite; }
+.harry2d-blink { transform-box: fill-box; transform-origin: center; animation: wiztalk-blink 4.6s infinite; }
