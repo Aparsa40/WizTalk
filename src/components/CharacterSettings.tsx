@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, Image, UserRound, X } from 'lucide-react';
 import { AvatarAsset, BackgroundAsset, Character } from '../types';
-import { KnowledgeManager } from './KnowledgeManager';
 
 interface CharacterSettingsProps { character: Character; onSave: (character: Character) => void; onClose: () => void; }
 
@@ -105,7 +104,6 @@ export function CharacterSettings({ character, onSave, onClose }: CharacterSetti
           {backgroundAssets.length > 1 && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">{backgroundAssets.map((asset: BackgroundAsset) => <button key={asset.id} type="button" onClick={() => setSelectedBackgroundId(asset.id)} className={`overflow-hidden rounded-xl border text-right transition ${selectedBackgroundId === asset.id ? 'border-amber-300/60 ring-2 ring-amber-300/20' : 'border-white/10 hover:border-white/25'}`}><div className="aspect-4/3 overflow-hidden bg-black/20"><img src={asset.source} alt={asset.name} className="h-full w-full object-cover" /></div><div className="px-3 py-2 text-xs font-semibold">{asset.name}</div></button>)}</div>}
         </section>
 
-        <KnowledgeManager characterId={character.identity.id} />
 
         <section className="space-y-4 rounded-2xl border border-white/10 bg-black/10 p-4"><h3 className="font-semibold text-amber-200">Voice</h3><label className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-[#130d1d] p-3 text-sm"><span>خواندن پاسخ‌ها با صدا</span><input type="checkbox" checked={voiceEnabled} onChange={(e) => setVoiceEnabled(e.target.checked)} className="h-5 w-5"/></label><label className="block text-sm">زبان<input value={voiceLanguage} onChange={(e) => setVoiceLanguage(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-[#130d1d] px-3 py-2 outline-none focus:border-amber-300/40"/></label><div className="grid gap-4 sm:grid-cols-3"><label className="block text-sm">سرعت<input type="number" min="0.5" max="2" step="0.1" value={speechRate} onChange={(e) => setSpeechRate(Number(e.target.value))} className="mt-2 w-full rounded-xl border border-white/10 bg-[#130d1d] px-3 py-2"/></label><label className="block text-sm">زیر و بمی<input type="number" min="0" max="2" step="0.1" value={pitch} onChange={(e) => setPitch(Number(e.target.value))} className="mt-2 w-full rounded-xl border border-white/10 bg-[#130d1d] px-3 py-2"/></label><label className="block text-sm">بلندی صدا<input type="number" min="0" max="1" step="0.1" value={volume} onChange={(e) => setVolume(Number(e.target.value))} className="mt-2 w-full rounded-xl border border-white/10 bg-[#130d1d] px-3 py-2"/></label></div></section>
         <div className="flex gap-3"><button type="button" onClick={onClose} className="flex-1 rounded-xl border border-white/10 px-4 py-3 text-sm hover:bg-white/5">انصراف</button><button type="button" onClick={save} className="flex-1 rounded-xl bg-amber-500 px-4 py-3 font-bold text-[#21102e] hover:bg-amber-400">ذخیره</button></div>
