@@ -81,10 +81,8 @@ function AnimatedHarry2DAvatar({ state, mouthShape, smiling }: { state: AvatarSt
           <animate attributeName="ry" values="11;11;1;11;11" keyTimes="0;.93;.96;.99;1" dur="4.6s" repeatCount="indefinite"/>
         </ellipse>
         <path d="M300 296 L286 352 Q298 362 312 352" fill="none" stroke="#9a5e4b" strokeWidth="7" strokeLinecap="round"/>
-        <path d={mouthPath} fill={mouth === 'closed' ? 'none' : '#8f3f4a'} stroke="#6d3039" strokeWidth="7" strokeLinecap="round">
-          <animate attributeName="d" values="M278 344 Q300 350 322 344;M274 343 Q300 357 326 343;M278 344 Q300 350 322 344" dur=".48s" repeatCount="indefinite"/>
-        </path>
-        <g fill="#e0a47b">
+        <path className={state === 'speaking' ? 'harry2d-mouth harry2d-mouth--speaking' : 'harry2d-mouth'} d={mouthPath} fill={mouth === 'closed' ? 'none' : '#8f3f4a'} stroke="#6d3039" strokeWidth="7" strokeLinecap="round"/>
+        <g className="harry2d-blink" fill="#e0a47b">
           <path d="M194 300 Q242 268 290 300 Q242 285 194 300Z"/>
           <path d="M306 300 Q358 268 406 300 Q358 285 306 300Z"/>
         </g>
