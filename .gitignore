@@ -36,3 +36,8 @@ Thumbs.db
 # Local workspace files
 prepare-v2.3.0.ps1
 WizTalk.code-workspace
+
+# Local SQLite runtime data
+data/wiztalk.sqlite
+data/wiztalk.sqlite-shm
+data/wiztalk.sqlite-wal
