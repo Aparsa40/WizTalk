@@ -28,7 +28,7 @@ export function ChatSessionsPanel({ characterId, activeSessionId, onSelect, onNe
   };
 
   return <aside dir="rtl" className="fixed inset-y-0 right-0 z-50 flex w-[min(92vw,25rem)] flex-col border-l border-white/10 bg-[#1a1027]/95 p-4 text-amber-50 shadow-2xl backdrop-blur-xl sm:p-5">
-    <div className="flex items-center justify-between gap-3"><div><div className="flex items-center gap-2 text-amber-200"><History className="h-5 w-5"/><h2 className="font-bold">جلسه‌های گفتگو</h2></div><p className="mt-1 text-xs text-amber-50/45">هر بار ورود به شخصیت، یک Session جدید ساخته می‌شود.</p></div><button type="button" onClick={onClose} className="rounded-full p-2 hover:bg-white/10"><X className="h-5 w-5"/></button></div>
+    <div className="flex items-center justify-between gap-3"><div><div className="flex items-center gap-2 text-amber-200"><History className="h-5 w-5"/><h2 className="font-bold">جلسه‌های گفتگو</h2></div><p className="mt-1 text-xs leading-5 text-amber-50/45">عنوان هر Session از اولین پیام تو ساخته می‌شود؛ روی عنوان بزن تا همان گفتگو دوباره باز شود.</p></div><button type="button" onClick={onClose} className="rounded-full p-2 hover:bg-white/10"><X className="h-5 w-5"/></button></div>
     <button type="button" onClick={onNew} className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-bold text-[#21102e]"><Plus className="h-5 w-5"/>گفتگوی جدید</button>
     {error && <p className="mt-3 rounded-xl bg-red-500/10 p-3 text-xs text-red-100">{error}</p>}
     <div className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
