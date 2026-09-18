@@ -70,6 +70,7 @@ export class VRMAvatarRenderer implements AvatarAnimationAdapter {
     this.applyExpressions();
     this.applyArmPose(0);
     this.applyWalkPose(0);
+    this.applyWalkSway(0);
   }
 
   setState(state: AvatarState): void {
@@ -101,6 +102,7 @@ export class VRMAvatarRenderer implements AvatarAnimationAdapter {
     this.greetingTriggered = false;
     this.applyExpressions();
     this.applyArmPose(0);
+    this.applyWalkSway(0);
   }
 
   update(delta: number): void {
@@ -117,6 +119,7 @@ export class VRMAvatarRenderer implements AvatarAnimationAdapter {
   private updateEntrance(delta: number): void {
     if (this.entranceRemaining <= 0) {
       this.applyWalkPose(0);
+      this.applyWalkSway(0);
       return;
     }
 
@@ -124,7 +127,9 @@ export class VRMAvatarRenderer implements AvatarAnimationAdapter {
     const progress = 1 - this.entranceRemaining / 1.6;
     const eased = progress * progress * (3 - 2 * progress);
     this.vrm.scene.position.x = this.entranceStartX * (1 - eased);
-    this.applyWalkPose(Math.sin(progress * Math.PI * 7) * (1 - eased * 0.65));
+    const stride = Math.sin(progress * Math.PI * 6) * (1 - eased * 0.75);
+    this.applyWalkPose(stride);
+    this.applyWalkSway(stride);
   }
 
   private applyWalkPose(stride: number): void {
@@ -136,10 +141,21 @@ export class VRMAvatarRenderer implements AvatarAnimationAdapter {
     const leftLowerLeg = humanoid.getNormalizedBoneNode('leftLowerLeg');
     const rightLowerLeg = humanoid.getNormalizedBoneNode('rightLowerLeg');
 
-    if (leftUpperLeg) leftUpperLeg.rotation.x = stride * 0.45;
-    if (rightUpperLeg) rightUpperLeg.rotation.x = -stride * 0.45;
-    if (leftLowerLeg) leftLowerLeg.rotation.x = Math.max(0, -stride) * 0.55;
-    if (rightLowerLeg) rightLowerLeg.rotation.x = Math.max(0, stride) * 0.55;
+    if (leftUpperLeg) leftUpperLeg.rotation.x = stride * 0.55;
+    if (rightUpperLeg) rightUpperLeg.rotation.x = -stride * 0.55;
+    if (leftLowerLeg) leftLowerLeg.rotation.x = Math.max(0, -stride) * 0.72;
+    if (rightLowerLeg) rightLowerLeg.rotation.x = Math.max(0, stride) * 0.72;
+  }
+
+  private applyWalkSway(stride: number): void {
+    const humanoid = this.vrm?.humanoid;
+    if (!humanoid?.getNormalizedBoneNode) return;
+    const leftUpperArm = humanoid.getNormalizedBoneNode('leftUpperArm');
+    const rightUpperArm = humanoid.getNormalizedBoneNode('rightUpperArm');
+    const hips = humanoid.getNormalizedBoneNode('hips');
+    if (leftUpperArm) leftUpperArm.rotation.x = -stride * 0.18;
+    if (rightUpperArm) rightUpperArm.rotation.x = stride * 0.18;
+    if (hips) hips.rotation.z = stride * 0.018;
   }
 
   private updateGreeting(delta: number): void {
