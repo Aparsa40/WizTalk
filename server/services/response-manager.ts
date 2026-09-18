@@ -107,11 +107,24 @@ export class ResponseManager {
 
     for (const [index, attempt] of attempts.entries()) {
       try {
-        const response = await withTimeout(
-          this.execute(attempt.provider, attempt.model, character, history, message),
-          this.timeoutMs,
-        );
-        if (!isValidResponse(response)) throw new Error('provider returned an empty response');
+        let response = '';
+        let lastError: unknown;
+        for (let retry = 0; retry < 2; retry += 1) {
+          try {
+            response = await withTimeout(
+              this.execute(attempt.provider, attempt.model, character, history, message),
+              this.timeoutMs,
+            );
+            if (!isValidResponse(response)) throw new Error('provider returned an empty response');
+            break;
+          } catch (error) {
+            lastError = error;
+            if (!this.isRetryable(error) || retry === 1) break;
+          }
+        }
+        if (!isValidResponse(response)) {
+          throw lastError instanceof Error ? lastError : new Error('provider request failed');
+        }
 
         return {
           response: response.trim(),
@@ -127,6 +140,14 @@ export class ResponseManager {
     }
 
     return null;
+  }
+
+  private isRetryable(error: unknown): boolean {
+    const candidate = error as { status?: number; code?: string; message?: string };
+    const status = candidate?.status;
+    if (typeof status === 'number') return status === 408 || status === 429 || status >= 500;
+    const message = String(candidate?.message ?? error ?? '').toLowerCase();
+    return /timeout|timed out|network|fetch failed|econnreset|enotfound|temporar|503|502|429/.test(message);
   }
 
   private finalFallback(mode: ResponseMode): ResponseResult {
