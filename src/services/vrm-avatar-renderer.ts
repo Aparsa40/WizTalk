@@ -60,11 +60,16 @@ export class VRMAvatarRenderer implements AvatarAnimationAdapter {
   private blinkRemaining = 0;
   private greetingRemaining = 0;
   private greetingTriggered = false;
+  private entranceRemaining = 1.6;
+  private entranceStartX = 2.2;
 
   setVrm(vrm: any): void {
     this.vrm = vrm;
+    this.entranceRemaining = 1.6;
+    this.vrm.scene.position.x = this.entranceStartX;
     this.applyExpressions();
     this.applyArmPose(0);
+    this.applyWalkPose(0);
   }
 
   setState(state: AvatarState): void {
@@ -90,6 +95,7 @@ export class VRMAvatarRenderer implements AvatarAnimationAdapter {
       timestamp: Date.now(),
     };
     this.elapsed = 0;
+    this.entranceRemaining = 1.6;
     this.blinkRemaining = 0;
     this.greetingRemaining = 0;
     this.greetingTriggered = false;
@@ -102,9 +108,38 @@ export class VRMAvatarRenderer implements AvatarAnimationAdapter {
 
     this.elapsed += delta;
     this.updateBlink(delta);
+    this.updateEntrance(delta);
     this.updateGreeting(delta);
     this.updateMotion();
     this.vrm.update?.(delta);
+  }
+
+  private updateEntrance(delta: number): void {
+    if (this.entranceRemaining <= 0) {
+      this.applyWalkPose(0);
+      return;
+    }
+
+    this.entranceRemaining = Math.max(0, this.entranceRemaining - delta);
+    const progress = 1 - this.entranceRemaining / 1.6;
+    const eased = progress * progress * (3 - 2 * progress);
+    this.vrm.scene.position.x = this.entranceStartX * (1 - eased);
+    this.applyWalkPose(Math.sin(progress * Math.PI * 7) * (1 - eased * 0.65));
+  }
+
+  private applyWalkPose(stride: number): void {
+    const humanoid = this.vrm?.humanoid;
+    if (!humanoid?.getNormalizedBoneNode) return;
+
+    const leftUpperLeg = humanoid.getNormalizedBoneNode('leftUpperLeg');
+    const rightUpperLeg = humanoid.getNormalizedBoneNode('rightUpperLeg');
+    const leftLowerLeg = humanoid.getNormalizedBoneNode('leftLowerLeg');
+    const rightLowerLeg = humanoid.getNormalizedBoneNode('rightLowerLeg');
+
+    if (leftUpperLeg) leftUpperLeg.rotation.x = stride * 0.45;
+    if (rightUpperLeg) rightUpperLeg.rotation.x = -stride * 0.45;
+    if (leftLowerLeg) leftLowerLeg.rotation.x = Math.max(0, -stride) * 0.55;
+    if (rightLowerLeg) rightLowerLeg.rotation.x = Math.max(0, stride) * 0.55;
   }
 
   private updateGreeting(delta: number): void {
