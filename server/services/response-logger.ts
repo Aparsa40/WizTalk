@@ -1,15 +1,11 @@
+import { getDatabase } from "../database";
+
 export interface ResponseLog {
-
  characterId?: string;
-
  provider?: string;
-
  model?: string;
-
  success:boolean;
-
  latencyMs:number;
-
  errorType?:string;
 
 }
