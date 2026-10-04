@@ -117,7 +117,7 @@ export class ResponseManager {
 
       if (isValidResponse(localResponse)) {
         await logResponse({
-          characterId: request.character.id,
+          characterId: request.character.characterId,
           provider: 'local',
           model: providers.local.defaultModel,
           success: true,
@@ -216,7 +216,7 @@ export class ResponseManager {
 
 
         await logResponse({
-          characterId: character.id,
+          characterId: character.characterId,
           provider: attempt.provider,
           model: attempt.model,
           success: true,
@@ -243,7 +243,7 @@ export class ResponseManager {
 
 
         await logResponse({
-          characterId: character.id,
+          characterId: character.characterId,
           provider: attempt.provider,
           model: attempt.model,
           success: false,
