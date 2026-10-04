@@ -1,0 +1,26 @@
+CREATE TABLE IF NOT EXISTS users (
+ id TEXT PRIMARY KEY,
+ created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE IF NOT EXISTS chat_sessions (
+ id TEXT PRIMARY KEY,
+ user_id TEXT,
+ character_id TEXT NOT NULL,
+ created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+ updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+ id TEXT PRIMARY KEY,
+ session_id TEXT NOT NULL,
+ role TEXT NOT NULL,
+ content TEXT NOT NULL,
+ created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE INDEX IF NOT EXISTS idx_messages_session
+ON chat_messages(session_id);

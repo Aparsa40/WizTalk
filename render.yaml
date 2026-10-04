@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: wiztalk
+    runtime: node
+
+    buildCommand: npm install && npm run build
+
+    startCommand: npm start
+
+    envVars:
+
+      - key: NODE_ENV
+        value: production
+
+      - key: WIZTALK_DB_PATH
+        value: /data/wiztalk.sqlite
+
+
+      - key: PORT
+        value: 10000
+
+
+    disk:
+      name: wiztalk-storage
+      mountPath: /data
+      sizeGB: 2
