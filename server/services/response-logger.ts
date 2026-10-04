@@ -1,4 +1,4 @@
- export interface ResponseLog {
+export interface ResponseLog {
   
  characterId?: string;
   
