@@ -1,23 +1,29 @@
-WizTalk Roadmap
+# WizTalk Roadmap
 
 Baseline: v2.0.0 — stable release baseline, 2026-09-12.
 
-Post-v2 phases:
+## Post-v2
 
-1. Real AI Model Activation — in progress.
-2. Production Database + Persistence — in progress.
-   Implemented: SQLite, authenticated users/sessions, durable chat history, Character-scoped knowledge, startup migrations, transactional SQL migrations, response telemetry, and persistent Render storage.
-   Remaining: server persistence for custom Characters and user-owned Character settings; explicit long-term memory tables and retention/deletion policy.
-3. Authentication + User Accounts — initial runtime layer is present; ownership hardening continues with persistence.
+1. Real AI Model Activation — expand live model-backed routing to all built-in Characters.
+2. Production Database + Persistence — implemented for the currently supported persistent application data.
+   - SQLite and persistent production storage.
+   - authenticated users and sessions.
+   - profiles and preferences.
+   - custom Characters and Character settings.
+   - chat sessions and messages.
+   - user/Character-scoped knowledge.
+   - response telemetry.
+   - transactional startup migrations.
+3. Long-term Memory — database foundation exists; memory creation, retrieval, summarization, retention, and deletion are still to be implemented.
 4. Real Avatar / Live2D / 3D.
 5. Advanced Voice + Lip-Sync.
-6. Long-term Memory.
-7. Moderation & Safety.
-8. Agent / Tools Architecture.
-9. Production Observability / Deployment.
-10. UX / Product Polish.
+6. Moderation & Safety.
+7. Agent / Tools Architecture.
+8. Production Observability / Deployment.
+9. UX / Product Polish.
 
-Development rules:
+## Development rules
+
 - Every phase gets a dedicated branch from the latest main.
 - Keep phase scope isolated.
 - Preserve Character isolation and server-authoritative provider/model selection.
