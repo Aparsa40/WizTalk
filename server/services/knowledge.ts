@@ -33,7 +33,7 @@ function mapRow(row: KnowledgeRow): KnowledgeDocument {
 export function listKnowledge(userId: string, characterId: string): KnowledgeDocument[] {
   const rows = db.prepare(
     'SELECT id, character_id, title, content, created_at, updated_at FROM knowledge_documents WHERE user_id = ? AND character_id = ? ORDER BY updated_at DESC',
-  ).all(userId, characterId) as KnowledgeRow[];
+  ).all(userId, characterId) as unknown as KnowledgeRow[];
 
   return rows.map(mapRow);
 }
@@ -85,7 +85,7 @@ export function searchKnowledge(userId: string, characterId: string, message: st
   const normalized = message.toLocaleLowerCase('fa-IR').trim();
   if (!normalized) return '';
 
-  const tokens = normalized.split(/\\s+/).filter((token) => token.length >= 2);
+  const tokens = normalized.split(/\s+/).filter((token) => token.length >= 2);
   if (!tokens.length) return '';
 
   const documents = listKnowledge(userId, characterId);
