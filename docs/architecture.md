@@ -38,7 +38,7 @@ The current production deployment uses SQLite on a persistent Render disk. The d
 
 Built-in Character definitions remain repository-owned data. The server normalizes them before use. Character/provider/model strategy remains server-authoritative.
 
-Custom Characters and some user-facing Character settings are still browser-local. Migrating those to authenticated server storage is the next persistence task.
+Custom Characters, user profiles, preferences, Character settings, chat history, knowledge ownership, and response telemetry are server-authoritative and scoped to the authenticated user where applicable. Browser localStorage is not the source of truth for these domains.
 
 ## Operational state
 
