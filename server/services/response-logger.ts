@@ -8,7 +8,7 @@ export interface ResponseLog {
   provider?: string;
   model?: string;
   success: boolean;
-  latencyMs: number;
+  latencyMs?: number;
   errorType?: string;
 }
 
@@ -34,8 +34,27 @@ export function logResponse(data: ResponseLog): void {
     data.provider ?? null,
     data.model ?? null,
     data.success ? 1 : 0,
-    Math.max(0, Math.round(data.latencyMs)),
-    data.errorType?.slice(0, 160) ?? null,
+    data.latencyMs ?? null,
+    data.errorType ?? null,
     now(),
   );
+}
+
+export function classifyResponseError(error: unknown): string {
+  const candidate = error as { status?: number; code?: string };
+  const status = candidate?.status;
+
+  if (status === 408) return 'TIMEOUT';
+  if (status === 429) return 'RATE_LIMIT';
+  if (typeof status === 'number' && status >= 500) return 'SERVER_ERROR';
+
+  const code = String(candidate?.code ?? '').toUpperCase();
+  if (code.includes('ECONNRESET') || code.includes('ENOTFOUND')) return 'NETWORK_ERROR';
+
+  const message = String(error instanceof Error ? error.message : error ?? '').toLowerCase();
+  if (/timeout|timed out/.test(message)) return 'TIMEOUT';
+  if (/network|fetch failed|econnreset|enotfound/.test(message)) return 'NETWORK_ERROR';
+  if (/empty response/.test(message)) return 'EMPTY_RESPONSE';
+
+  return 'PROVIDER_ERROR';
 }
