@@ -1,7 +1,7 @@
 import { ServerCharacter } from './characters';
 import { executeProvider, HistoryItem, Provider, providers, resolveConfiguredRoute } from './ai';
 import { registerProviderFailure, registerProviderSuccess } from './provider-health';
-import { logResponse } from './response-logger';
+import { classifyResponseError, logResponse } from './response-logger';
 
 export const DEFAULT_RESPONSE_TIMEOUT_MS = 12000;
 export type ResponseMode = 'text' | 'voice';
@@ -11,9 +11,11 @@ export interface ResponseManagerRequest {
   character: ServerCharacter;
   history?: HistoryItem[];
   mode?: ResponseMode;
-  userId?: string;
-  chatSessionId?: string;
-  messageId?: string;
+  persistence?: {
+    userId: string;
+    chatSessionId: string;
+    messageId: string;
+  };
 }
 
 export interface ResponseResult {
@@ -40,16 +42,9 @@ function isValidResponse(value: unknown): value is string {
 export function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('response provider timeout')), timeoutMs);
-
     promise.then(
-      (value) => {
-        clearTimeout(timer);
-        resolve(value);
-      },
-      (error: unknown) => {
-        clearTimeout(timer);
-        reject(error);
-      },
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error: unknown) => { clearTimeout(timer); reject(error); },
     );
   });
 }
@@ -64,7 +59,7 @@ export class ResponseManager {
     const message = request.message.trim();
     const mode = request.mode ?? 'text';
 
-    if (!message) return this.finalFallback(request);
+    if (!message) return this.finalFallback(mode, request);
 
     const history = (request.history ?? [])
       .filter((item) => (item.sender === 'user' || item.sender === 'character') && typeof item.text === 'string')
@@ -74,54 +69,34 @@ export class ResponseManager {
 
     if (mode === 'voice') {
       const voiceResult = await this.runModelPair(
-        request,
-        history,
-        message,
-        voicePair.primary,
-        voicePair.secondary,
-        'voice',
+        request, history, message, voicePair.primary, voicePair.secondary, 'voice',
       );
-
       if (voiceResult) return voiceResult;
     }
 
     const textPair = request.character.textModels;
-
     const textResult = await this.runModelPair(
-      request,
-      history,
-      message,
-      textPair.primary,
-      textPair.secondary,
-      mode,
+      request, history, message, textPair.primary, textPair.secondary, mode,
     );
-
     if (textResult) return textResult;
 
     try {
       const start = Date.now();
       const localResponse = await withTimeout(
-        this.execute(
-          'local',
-          providers.local.defaultModel,
-          request.character,
-          history,
-          message,
-        ),
+        this.execute('local', providers.local.defaultModel, request.character, history, message),
         this.timeoutMs,
       );
       const latencyMs = Date.now() - start;
 
       if (isValidResponse(localResponse)) {
         logResponse({
-          ...this.logContext(request),
+          ...request.persistence,
           characterId: request.character.identity.id,
           provider: 'local',
           model: providers.local.defaultModel,
           success: true,
           latencyMs,
         });
-
         return {
           response: localResponse.trim(),
           source: 'local',
@@ -133,18 +108,16 @@ export class ResponseManager {
       }
     } catch (error) {
       logResponse({
-        ...this.logContext(request),
+        ...request.persistence,
         characterId: request.character.identity.id,
         provider: 'local',
         model: providers.local.defaultModel,
         success: false,
-        latencyMs: this.timeoutMs,
-        errorType: error instanceof Error ? error.message : 'unknown_error',
+        errorType: classifyResponseError(error),
       });
-      console.warn('Character-local offline response engine failed', error);
     }
 
-    return this.finalFallback(request);
+    return this.finalFallback(mode, request);
   }
 
   private async runModelPair(
@@ -182,7 +155,6 @@ export class ResponseManager {
             if (!isValidResponse(response)) {
               throw new Error('provider returned an empty response');
             }
-
             break;
           } catch (error) {
             lastError = error;
@@ -191,16 +163,14 @@ export class ResponseManager {
         }
 
         if (!isValidResponse(response)) {
-          throw lastError instanceof Error
-            ? lastError
-            : new Error('provider request failed');
+          throw lastError instanceof Error ? lastError : new Error('provider request failed');
         }
 
         const latencyMs = Date.now() - startedAt;
         registerProviderSuccess(attempt.provider);
 
         logResponse({
-          ...this.logContext(request),
+          ...request.persistence,
           characterId: request.character.identity.id,
           provider: attempt.provider,
           model: attempt.model,
@@ -221,34 +191,23 @@ export class ResponseManager {
         registerProviderFailure(attempt.provider);
 
         logResponse({
-          ...this.logContext(request),
+          ...request.persistence,
           characterId: request.character.identity.id,
           provider: attempt.provider,
           model: attempt.model,
           success: false,
           latencyMs,
-          errorType: error instanceof Error ? error.message : 'unknown_error',
+          errorType: classifyResponseError(error),
         });
-
-        console.warn(`Response provider ${attempt.provider} failed`, error);
       }
     }
 
     return null;
   }
 
-  private logContext(request: ResponseManagerRequest) {
-    return {
-      userId: request.userId,
-      chatSessionId: request.chatSessionId,
-      messageId: request.messageId,
-    };
-  }
-
   private isRetryable(error: unknown): boolean {
     const candidate = error as { status?: number; code?: string; message?: string };
     const status = candidate?.status;
-
     if (typeof status === 'number') {
       return status === 408 || status === 429 || status >= 500;
     }
@@ -257,16 +216,17 @@ export class ResponseManager {
     return /timeout|timed out|network|fetch failed|econnreset|enotfound|temporar|503|502|429/.test(message);
   }
 
-  private finalFallback(request: ResponseManagerRequest): ResponseResult {
-    logResponse({
-      ...this.logContext(request),
-      characterId: request.character.identity.id,
-      provider: 'local',
-      model: 'controlled-final-fallback',
-      success: false,
-      latencyMs: 0,
-      errorType: 'FINAL_FALLBACK',
-    });
+  private finalFallback(mode: ResponseMode, request?: ResponseManagerRequest): ResponseResult {
+    if (request) {
+      logResponse({
+        ...request.persistence,
+        characterId: request.character.identity.id,
+        provider: 'local',
+        model: providers.local.defaultModel,
+        success: false,
+        errorType: 'FINAL_FALLBACK',
+      });
+    }
 
     return {
       response: 'فعلاً نتوانستم پاسخ مناسبی آماده کنم. لطفاً کمی بعد دوباره تلاش کن.',
@@ -274,7 +234,7 @@ export class ResponseManager {
       provider: 'local',
       model: providers.local.defaultModel,
       fallbackUsed: true,
-      mode: request.mode ?? 'text',
+      mode,
     };
   }
 }
