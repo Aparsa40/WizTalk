@@ -53,6 +53,14 @@ export class ApiService {
     await request('/api/preferences', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(preferences) });
   }
 
+  static async getCharacterSettings(characterId: string): Promise<Partial<Character>> {
+    return request(`/api/characters/${encodeURIComponent(characterId)}/settings`);
+  }
+
+  static async saveCharacterSettings(characterId: string, settings: Partial<Character>): Promise<void> {
+    await request(`/api/characters/${encodeURIComponent(characterId)}/settings`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(settings) });
+  }
+
   static async saveCustomCharacter(character: Character): Promise<Character> {
     return request(`/api/custom-characters/${encodeURIComponent(character.identity.id)}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(character) });
   }
