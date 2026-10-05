@@ -22,7 +22,7 @@ export function runMigrations(db: MigrationDatabase): void {
   if (!fs.existsSync(migrationsPath)) return;
 
   const files = fs.readdirSync(migrationsPath)
-    .filter((file) => /^\\d+_[a-z0-9_-]+\\.sql$/i.test(file))
+    .filter((file) => /^\d+_[a-z0-9_-]+\.sql$/i.test(file))
     .sort();
 
   for (const file of files) {
