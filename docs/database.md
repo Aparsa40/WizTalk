@@ -2,74 +2,67 @@
 
 ## Current architecture
 
-WizTalk uses a server-authoritative SQLite persistence layer for authenticated application data.
-
-```
 Browser
-  ↓ HTTPS/API
-Express Server
-  ├─ Authentication
-  ├─ Character resolution
-  ├─ Chat sessions/messages
-  ├─ Knowledge documents
-  └─ Response telemetry
-        ↓
-   Persistence Layer
-        ↓
-   SQLite (WAL)
-        ↓
-   WIZTALK_DB_PATH
-```
+→ HTTPS/API
+→ Express Server
+→ domain services
+→ SQLite persistence
 
-The database file is selected by `WIZTALK_DB_PATH`. Development defaults to `data/wiztalk.sqlite`; the Render deployment configuration uses `/data/wiztalk.sqlite` on a persistent disk.
+SQLite uses WAL mode, foreign keys, and a configurable WIZTALK_DB_PATH.
 
 ## Durable tables
 
-- `users` — account identity and password hashes/salts.
-- `sessions` — hashed authentication session tokens and expiry.
-- `chat_sessions` — user-owned conversations and Character association.
-- `chat_messages` — durable user/Character messages.
-- `knowledge_documents` — Character-scoped knowledge documents.
-- `response_logs` — provider/model attempt telemetry, latency, success/failure classification, and request ownership metadata.
-- `schema_migrations` — applied SQL migration history.
-
-Foreign keys and indexes are enabled by the database bootstrap.
+- users — account identity.
+- sessions — hashed authentication session tokens and expiry.
+- user_profiles — user profile data.
+- user_preferences — selected Character and voice preference.
+- chat_sessions — user-owned conversations and Character association.
+- chat_messages — durable conversation messages.
+- custom_characters — user-owned custom Character JSON.
+- character_settings — user-owned Character presentation/settings overrides.
+- knowledge_documents — Character/user-scoped knowledge.
+- memories — reserved durable structure for the future long-term memory layer.
+- response_logs — provider/model attempt telemetry.
+- schema_migrations — applied migration history.
 
 ## Migration model
 
-Schema creation is migration-driven. `server/database/migration-runner.ts`:
+Schema changes are numbered SQL migrations under server/database/migrations.
 
-1. creates `schema_migrations` if necessary;
-2. discovers numbered SQL files under `server/database/migrations`;
+The migration runner:
+
+1. creates schema_migrations if needed;
+2. discovers numbered SQL files;
 3. applies unapplied migrations in lexical order;
-4. records each successful migration;
+4. records successful migrations;
 5. runs each migration inside a transaction.
 
-The server runs migrations during database initialization before the rest of the server uses the database.
+The server runs migrations during database initialization before application services use the database.
 
 Current migrations:
 
-1. `000_initial_schema.sql`
-2. `001_add_response_logs.sql`
-3. `002_extend_response_logs.sql`
+1. 000_initial_schema.sql
+2. 001_add_response_logs.sql
+3. 002_extend_response_logs.sql
+4. 003_user_data.sql
 
-## Ownership boundaries
+A separate server/database/migrate.ts command exists for explicit migration execution.
 
-- Built-in Characters remain repository-owned JSON/domain configuration.
-- Chat sessions and messages are always scoped to the authenticated user.
-- Knowledge documents are Character-scoped server data.
-- Response telemetry is server-side and does not store API keys, passwords, or raw provider error payloads.
-- Provider credentials remain environment variables and are never database records.
-- Provider health/cooldown state is intentionally process-local operational state; it is safe to reconstruct after a restart.
+## Ownership
 
-## Browser persistence
+- Built-in Characters are repository-owned.
+- Custom Characters are owned by the authenticated user.
+- Character settings are owned by the authenticated user.
+- Chat sessions/messages are owned by the authenticated user.
+- Knowledge records are scoped by authenticated user and Character.
+- Response telemetry is server-side.
+- Provider credentials are environment variables, never database records.
+- Provider health/cooldown is process-local operational state and may reset after restart.
 
-The server is authoritative for chat history, authentication, knowledge, and response telemetry.
+## Memory boundary
 
-Browser `localStorage` is still used for client-only state that has not yet been migrated to server ownership, including custom Character storage and some UI/user preference state. It must never contain provider credentials or other secrets.
+Conversation history is durable application data. The memories table exists for the future long-term memory feature; it is not yet populated or retrieved by the response pipeline.
 
-## Production direction
+## Production
 
-SQLite is the current production persistence engine because the deployment provides a persistent Render disk. Database access remains behind server services so a future PostgreSQL migration can replace the storage engine without moving persistence back into the browser.
-
-The next persistence task is migrating custom Characters and user-owned Character settings to authenticated server storage while preserving server-authoritative provider/model strategy.
+Render uses WIZTALK_DB_PATH=/data/wiztalk.sqlite on a persistent disk. SQLite is the current production engine. Database access stays behind server services so a future PostgreSQL migration does not require moving persistence into the browser.
