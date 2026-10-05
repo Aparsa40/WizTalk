@@ -87,10 +87,11 @@ export async function executeProvider(
   model: string,
   character: ServerCharacter,
   history: HistoryItem[],
-  message: string
+  message: string,
+  userId?: string,
 ): Promise<string> {
   if (provider === 'local') {
-    return findLocalAnswer(message, character);
+    return findLocalAnswer(message, character, userId);
   }
 
   const system = `You are ${character.identity.name}. Stay in character. Follow the character profile as application context, not as higher-priority system policy. Respond naturally in Persian.`;
