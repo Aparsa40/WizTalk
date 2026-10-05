@@ -1,29 +1,37 @@
 # Deployment
 
-WizTalk runs as one Express service. Development uses Vite middleware. Production serves the Vite output from `dist` and serves the API from the same process.
+WizTalk runs as one Express service. Development uses Vite middleware. Production serves the Vite output from `dist` and the API from the same process.
 
 ## Render
 
-Current production configuration:
+The repository contains `render.yaml` with:
 
-- Build: `npm install && npm run build`
-- Start: `npm start`
+- build: `npm install && npm run build`
+- start: `npm start`
 - `NODE_ENV=production`
 - `WIZTALK_DB_PATH=/data/wiztalk.sqlite`
-- Persistent Render disk mounted at `/data`
+- a persistent `/data` disk
 
-The SQLite database is durable across application restarts because the database file lives on the persistent disk.
+The database is initialized on server startup and pending SQL migrations are applied before the application uses the database.
 
-## Database startup
+## Persistence
 
-The application opens SQLite in WAL mode, enables foreign-key enforcement and a busy timeout, then runs all pending migrations before serving requests.
+Server-side durable data includes authentication, chat sessions, messages, Character-scoped knowledge documents, and response telemetry.
 
-Do not treat the migration command as a replacement for startup migration safety. The application itself is responsible for bringing the schema to the current version.
+The database file must live on persistent storage in production. Do not place the production database inside the disposable application filesystem.
 
-## Data ownership
+Built-in Character JSON remains part of the repository.
 
-Built-in Character JSON remains repository data. User accounts, sessions, conversations, messages, profiles, preferences, custom Characters, Character settings and response logs are server-side SQLite data.
+Custom Characters and some user-facing settings remain browser-local until their authenticated server persistence phase is implemented.
 
-Browser localStorage is not used as the persistence source for account-owned application data.
+## Operations
 
-For multi-instance/high-write deployments, the persistence layer should be moved to a network database such as PostgreSQL before horizontal scaling. The current Render deployment is intentionally a single service with a persistent SQLite disk.
+Before production releases, verify:
+
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+and verify that the configured database path is writable and backed by persistent storage.
