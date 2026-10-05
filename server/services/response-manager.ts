@@ -32,7 +32,8 @@ export type ResponseExecutor = (
   model: string,
   character: ServerCharacter,
   history: HistoryItem[],
-  message: string
+  message: string,
+  userId?: string,
 ) => Promise<string>;
 
 function isValidResponse(value: unknown): value is string {
@@ -83,7 +84,7 @@ export class ResponseManager {
     try {
       const start = Date.now();
       const localResponse = await withTimeout(
-        this.execute('local', providers.local.defaultModel, request.character, history, message),
+        this.execute('local', providers.local.defaultModel, request.character, history, message, request.persistence?.userId),
         this.timeoutMs,
       );
       const latencyMs = Date.now() - start;
@@ -148,6 +149,7 @@ export class ResponseManager {
                 request.character,
                 history,
                 message,
+                request.persistence?.userId,
               ),
               this.timeoutMs,
             );
