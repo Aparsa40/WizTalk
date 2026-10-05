@@ -1,7 +1,7 @@
 {
   "name": "WizTalk",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.1.0",
   "type": "module",
   "description": "WizTalk - Persian-first modular interactive AI character platform with isolated Character, Avatar, Response, Voice, Memory, and provider architectures",
   "scripts": {
@@ -13,7 +13,7 @@
     "lint": "tsc --noEmit",
     "test": "tsx --test tests/**/*.test.ts",
     "import:knowledge": "tsx scripts/import-knowledge.ts",
-    "db:migrate":"tsx server/database/migration-runner.ts"
+    "db:migrate": "tsx server/database/migrate.ts"
   },
   
   "dependencies": {

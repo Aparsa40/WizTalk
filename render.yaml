@@ -2,23 +2,21 @@ services:
   - type: web
     name: wiztalk
     runtime: node
+    plan: 0.5c-512mb
 
-    buildCommand: npm install && npm run build
-
+    buildCommand: npm ci && npm run build
     startCommand: npm start
+    healthCheckPath: /api/health
 
     envVars:
-
       - key: NODE_ENV
         value: production
 
       - key: WIZTALK_DB_PATH
         value: /data/wiztalk.sqlite
 
-
       - key: PORT
         value: 10000
-
 
     disk:
       name: wiztalk-storage

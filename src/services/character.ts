@@ -1,42 +1,9 @@
+import { ApiService } from './api';
 import { Character, Provider, normalizeCharacter } from '../types';
-
-const CUSTOM_CHARACTERS_KEY = 'wiztalk_custom_characters';
-const CHARACTER_SETTINGS_KEY = 'wiztalk_character_settings';
 
 type CharacterUserSettings = Pick<Character, 'identity' | 'avatar' | 'backgrounds' | 'voiceModels'>;
 
-function readCustomCharacters(): Character[] {
-  try {
-    const raw = localStorage.getItem(CUSTOM_CHARACTERS_KEY);
-    if (!raw) return [];
-    const values = JSON.parse(raw) as unknown[];
-    return values.map((value) => normalizeCharacter(value as Record<string, unknown>, 'custom'));
-  } catch (error) {
-    console.warn('Could not read custom characters', error);
-    return [];
-  }
-}
-
-function saveCustomCharacters(characters: Character[]): void { localStorage.setItem(CUSTOM_CHARACTERS_KEY, JSON.stringify(characters)); }
-
-function readCharacterSettings(): Record<string, Partial<CharacterUserSettings>> {
-  try {
-    const raw = localStorage.getItem(CHARACTER_SETTINGS_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, Partial<CharacterUserSettings>>;
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch (error) {
-    console.warn('Could not read character settings', error);
-    return {};
-  }
-}
-
-function saveCharacterSettings(settings: Record<string, Partial<CharacterUserSettings>>): void { localStorage.setItem(CHARACTER_SETTINGS_KEY, JSON.stringify(settings)); }
-
-function applyUserSettings(character: Character): Character {
-  const override = readCharacterSettings()[character.identity.id];
-  if (!override) return character;
-
+function applyUserSettings(character: Character, override: Partial<CharacterUserSettings>): Character {
   const selectedAvatarId = override.avatar?.selectedId;
   const selectedAvatar = character.avatar.assets?.find((asset) => asset.id === selectedAvatarId);
   const validSelectedAvatarId = selectedAvatar?.id ?? character.avatar.selectedId ?? character.avatar.assets?.[0]?.id;
@@ -56,8 +23,6 @@ function applyUserSettings(character: Character): Character {
         customAnimationData: selectedAvatar.customAnimationData,
       } : {}),
     },
-    // Built-in characters own their asset catalogs. Only the selected item is persisted as a user override.
-    // This prevents an older localStorage entry from resurrecting removed built-in assets.
     backgrounds: {
       ...character.backgrounds,
       selectedId: override.backgrounds?.selectedId ?? character.backgrounds.selectedId,
@@ -65,13 +30,21 @@ function applyUserSettings(character: Character): Character {
     voiceModels: {
       ...character.voiceModels,
       ...(override.voiceModels ?? {}),
-      default: { ...character.voiceModels.default, ...(override.voiceModels?.default ?? {}) },
+      output: {
+        ...character.voiceModels.output,
+        ...(override.voiceModels?.output ?? {}),
+      },
     },
   };
 }
 
 function extractUserSettings(character: Character): CharacterUserSettings {
-  return { identity: character.identity, avatar: character.avatar, backgrounds: character.backgrounds, voiceModels: character.voiceModels };
+  return {
+    identity: character.identity,
+    avatar: character.avatar,
+    backgrounds: character.backgrounds,
+    voiceModels: character.voiceModels,
+  };
 }
 
 function slugify(value: string): string {
@@ -102,56 +75,81 @@ export function createCharacterDraft(overrides: Partial<Character> = {}): Charac
     avatar: { ...draft.avatar, ...overrides.avatar },
     backgrounds: { ...draft.backgrounds, ...overrides.backgrounds },
     textModels: { ...draft.textModels, ...overrides.textModels },
-    voiceModels: { ...draft.voiceModels, ...overrides.voiceModels, default: { ...draft.voiceModels.default, ...overrides.voiceModels?.default } },
+    voiceModels: { ...draft.voiceModels, ...overrides.voiceModels, output: { ...draft.voiceModels.output, ...overrides.voiceModels?.output } },
     settings: { ...draft.settings, ...overrides.settings },
   };
 }
 
 export class CharacterService {
   static async list(): Promise<Character[]> {
-    const response = await fetch('/api/characters');
-    if (!response.ok) throw new Error('بارگذاری شخصیت‌ها ناموفق بود.');
-    const builtins = (await response.json()) as unknown[];
-    return [...builtins.map((item) => applyUserSettings(normalizeCharacter(item as Record<string, unknown>))), ...readCustomCharacters().map(applyUserSettings)];
+    const characters = await ApiService.getCharacters();
+    const result: Character[] = [];
+
+    for (const raw of characters) {
+      const normalized = normalizeCharacter(raw);
+      try {
+        const settings = await ApiService.getCharacterSettings(normalized.identity.id);
+        result.push(applyUserSettings(normalized, settings));
+      } catch {
+        result.push(normalized);
+      }
+    }
+
+    return result;
   }
 
-  static create(input: Character): Character {
-    const existing = readCustomCharacters();
+  static async create(input: Character): Promise<Character> {
+    const existing = await this.list();
     const base = slugify(input.identity.name || input.identity.displayName);
-    let id = base; let index = 2;
+    let id = base;
+    let index = 2;
     while (existing.some((item) => item.identity.id === id)) id = `${base}-${index++}`;
-    const character: Character = { ...input, identity: { ...input.identity, id }, settings: { ...input.settings, source: 'custom', enabled: true } };
-    saveCustomCharacters([...existing, character]);
-    return character;
+
+    const character: Character = {
+      ...input,
+      identity: { ...input.identity, id },
+      settings: { ...input.settings, source: 'custom', enabled: true },
+    };
+
+    return ApiService.saveCustomCharacter(character);
   }
 
-  static update(input: Character): Character {
-    const existing = readCustomCharacters();
-    const index = existing.findIndex((item) => item.identity.id === input.identity.id);
-    if (index === -1) throw new Error('شخصیت سفارشی پیدا نشد.');
-    const updated: Character = { ...input, settings: { ...input.settings, source: 'custom' } };
-    existing[index] = updated;
-    saveCustomCharacters(existing);
-    return updated;
+  static async update(input: Character): Promise<Character> {
+    if (!this.isCustom(input)) throw new Error('شخصیت اصلی فقط خواندنی است.');
+    return ApiService.saveCustomCharacter({
+      ...input,
+      settings: { ...input.settings, source: 'custom' },
+    });
   }
 
-  /** Saves only user-facing fields; provider/model strategy remains internal. */
-  static saveUserSettings(input: Character): Character {
-    const all = readCharacterSettings();
-    all[input.identity.id] = extractUserSettings(input);
-    saveCharacterSettings(all);
+  static async saveUserSettings(input: Character): Promise<Character> {
+    const settings = extractUserSettings(input);
+    await ApiService.saveCharacterSettings(input.identity.id, settings);
     return input;
   }
 
-  static remove(id: string): void {
-    saveCustomCharacters(readCustomCharacters().filter((item) => item.identity.id !== id));
-    const settings = readCharacterSettings(); delete settings[id]; saveCharacterSettings(settings);
+  static async remove(id: string): Promise<void> {
+    await ApiService.deleteCustomCharacter(id);
   }
 
-  static duplicate(input: Character): Character {
-    return this.create({ ...input, identity: { ...input.identity, id: '', name: input.identity.name + ' Copy', displayName: input.identity.displayName + ' (کپی)' }, settings: { ...input.settings, source: 'custom' } });
+  static async duplicate(input: Character): Promise<Character> {
+    return this.create({
+      ...input,
+      identity: {
+        ...input.identity,
+        id: '',
+        name: input.identity.name + ' Copy',
+        displayName: input.identity.displayName + ' (کپی)',
+      },
+      settings: { ...input.settings, source: 'custom' },
+    });
   }
 
-  static isCustom(character: Character): boolean { return character.settings.source === 'custom'; }
-  static defaultProvider(character: Character): Provider { return character.textModels.default.provider || 'local'; }
+  static isCustom(character: Character): boolean {
+    return character.settings.source === 'custom';
+  }
+
+  static defaultProvider(character: Character): Provider {
+    return character.textModels.default.provider || 'local';
+  }
 }

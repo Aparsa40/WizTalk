@@ -8,6 +8,8 @@ import { responseManager, type ResponseMode } from './server/services/response-m
 import { getUserFromRequest, loginUser, logoutUser, registerUser } from './server/services/auth';
 import { addChatMessage, createChatSession, deleteChatSession, getChatMessages, getChatSession, listChatSessions } from './server/services/chat-sessions';
 import { addKnowledge, deleteKnowledge, listKnowledge } from './server/services/knowledge';
+import { getCharacterSettings, getUserProfile, getUserPreferences, saveCharacterSettings, saveUserPreferences, saveUserProfile } from './server/services/user-data';
+import { deleteCustomCharacter, getCustomCharacter, listCustomCharacters, saveCustomCharacter } from './server/services/custom-characters';
 
 dotenv.config();
 
@@ -99,9 +101,12 @@ app.post('/api/auth/logout', (req, res) => {
 
 app.get('/api/models', (_req, res) => res.json({ providers: ['local', 'openrouter', 'huggingface'] }));
 
-app.get('/api/characters', async (_req, res) => {
+app.get('/api/characters', async (req, res) => {
   try {
-    res.json(await listCharacters());
+    const user = getUserFromRequest(req);
+    const builtins = await listCharacters();
+    const custom = user ? listCustomCharacters(user.id) : [];
+    res.json([...builtins, ...custom]);
   } catch (error) {
     console.error('Character list error', error);
     res.status(500).json({ error: 'بارگذاری شخصیت‌ها ناموفق بود.' });
@@ -114,7 +119,7 @@ app.post('/api/sessions', async (req, res) => {
   const { characterId } = req.body as { characterId?: unknown };
   if (typeof characterId !== 'string') return res.status(400).json({ error: 'شخصیت انتخاب نشده است.' });
 
-  const character = await getCharacter(characterId);
+  const character = await getCharacter(characterId) ?? getCustomCharacter(user.id, characterId);
   if (!character) return res.status(404).json({ error: 'شخصیت پیدا نشد.' });
 
   const session = createChatSession(user.id, character.identity.id, character.identity.greeting);
@@ -171,13 +176,13 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
   const session = getChatSession(user.id, sessionId);
   if (!session) return res.status(404).json({ error: 'جلسه چت پیدا نشد.' });
 
-  const character = await getCharacter(session.characterId);
+  const character = await getCharacter(session.characterId) ?? getCustomCharacter(user.id, session.characterId);
   if (!character) return res.status(404).json({ error: 'شخصیت جلسه پیدا نشد.' });
 
   const safeMessage = message.trim();
   const previousMessages = getChatMessages(user.id, session.id);
   const history = previousMessages.map((item) => ({ sender: item.sender, text: item.text })).slice(-12);
-  addChatMessage(session.id, 'user', safeMessage);
+  const userMessage = addChatMessage(session.id, 'user', safeMessage);
 
   const responseMode: ResponseMode = mode === 'voice' ? 'voice' : 'text';
 
@@ -187,6 +192,11 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
       character,
       history,
       mode: responseMode,
+      persistence: {
+        userId: user.id,
+        chatSessionId: session.id,
+        messageId: userMessage.id,
+      },
     });
     const reply = addChatMessage(session.id, 'character', result.response);
     return res.json({ response: reply.text, message: reply, sessionId: session.id });
@@ -194,6 +204,132 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
     console.error('Response manager error', error);
     return res.status(502).json({ error: 'سرویس پاسخ‌گو در دسترس نیست. لطفاً دوباره تلاش کنید.' });
   }
+});
+
+app.get('/api/profile', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  return res.json(getUserProfile(user.id));
+});
+
+app.put('/api/profile', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+
+  const body = req.body as Partial<ReturnType<typeof getUserProfile>>;
+  const current = getUserProfile(user.id);
+  const profile = {
+    name: typeof body.name === 'string' ? body.name : current.name,
+    preferredAddress: typeof body.preferredAddress === 'string' ? body.preferredAddress : current.preferredAddress,
+    interests: Array.isArray(body.interests) ? body.interests.filter((item): item is string => typeof item === 'string') : current.interests,
+    notes: typeof body.notes === 'string' ? body.notes : current.notes,
+  };
+
+  return res.json(saveUserProfile(user.id, profile));
+});
+
+app.get('/api/preferences', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  return res.json(getUserPreferences(user.id));
+});
+
+app.put('/api/preferences', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+
+  const current = getUserPreferences(user.id);
+  const body = req.body as { selectedCharacterId?: unknown; voiceEnabled?: unknown };
+
+  return res.json(saveUserPreferences(user.id, {
+    selectedCharacterId: typeof body.selectedCharacterId === 'string' ? body.selectedCharacterId : current.selectedCharacterId,
+    voiceEnabled: typeof body.voiceEnabled === 'boolean' ? body.voiceEnabled : current.voiceEnabled,
+  }));
+});
+
+app.get('/api/characters/:characterId/settings', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  return res.json(getCharacterSettings(user.id, req.params.characterId) ?? {});
+});
+
+app.put('/api/characters/:characterId/settings', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+
+  if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+    return res.status(400).json({ error: 'تنظیمات شخصیت نامعتبر است.' });
+  }
+
+  return res.json(saveCharacterSettings(user.id, req.params.characterId, req.body as Record<string, unknown>));
+});
+
+app.get('/api/knowledge/:characterId', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  return res.json(listKnowledge(user.id, req.params.characterId));
+});
+
+app.post('/api/knowledge/:characterId', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+
+  const body = req.body as { title?: unknown; content?: unknown };
+  if (typeof body.title !== 'string' || typeof body.content !== 'string') {
+    return res.status(400).json({ error: 'عنوان و محتوای دانش الزامی است.' });
+  }
+
+  try {
+    return res.status(201).json(
+      addKnowledge(user.id, req.params.characterId, body.title, body.content),
+    );
+  } catch (error) {
+    if (error instanceof Error && error.message === 'EMPTY_KNOWLEDGE') {
+      return res.status(400).json({ error: 'محتوای دانش نمی‌تواند خالی باشد.' });
+    }
+    return res.status(400).json({ error: 'ذخیره دانش ناموفق بود.' });
+  }
+});
+
+app.delete('/api/knowledge/:characterId/:documentId', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+
+  const deleted = deleteKnowledge(
+    user.id,
+    req.params.documentId,
+    req.params.characterId,
+  );
+  if (!deleted) return res.status(404).json({ error: 'سند دانش پیدا نشد.' });
+
+  return res.json({ ok: true });
+});
+
+app.put('/api/custom-characters/:characterId', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+
+  const character = req.body;
+  if (!character || typeof character !== 'object') {
+    return res.status(400).json({ error: 'شخصیت نامعتبر است.' });
+  }
+
+  try {
+    const normalized = { ...(character as Record<string, unknown>), identity: { ...((character as Record<string, unknown>).identity as Record<string, unknown>), id: req.params.characterId } } as import('./src/types').Character;
+    normalized.settings = { ...normalized.settings, source: 'custom', enabled: true };
+    return res.json(saveCustomCharacter(user.id, normalized));
+  } catch {
+    return res.status(400).json({ error: 'ذخیره شخصیت ناموفق بود.' });
+  }
+});
+
+app.delete('/api/custom-characters/:characterId', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+
+  const deleted = deleteCustomCharacter(user.id, req.params.characterId);
+  if (!deleted) return res.status(404).json({ error: 'شخصیت سفارشی پیدا نشد.' });
+  return res.json({ ok: true });
 });
 
 app.post('/api/tts', ttsRateLimiter, async (req, res) => {

@@ -1,7 +1,25 @@
 # Data Layer
 
-Static domain data is kept in data/characters and data/faq. The character loader validates required fields and skips malformed files with a diagnostic server log instead of crashing the whole list.
+WizTalk uses a server-side persistence boundary for authenticated data.
 
-The client uses CharacterService as the boundary between API data and custom local data. MemoryStore is the persistence contract; LocalStorageMemory is its active V1 adapter.
+Static built-in Character definitions remain repository data under data/characters.
 
-The model is database-ready but intentionally has no database dependency in V1. A future adapter can persist users, characters, avatars, conversations, messages, settings, providers, models, memory, and voice configuration.
+Server-owned durable data includes users, sessions, profiles, preferences, custom Characters, Character settings, chat sessions, messages, knowledge, and response telemetry.
+
+ApiService is the browser boundary for server persistence. The browser must not become the source of truth for authenticated application data.
+
+The runtime flow is:
+
+UI
+↓
+ApiService
+↓
+Express routes
+↓
+Domain services
+↓
+SQLite
+
+Custom Characters and user-facing Character settings are now server-side and user-owned. Built-in Character definitions remain repository-owned.
+
+See docs/database.md for the schema and migration model.
