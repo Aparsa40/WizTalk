@@ -1,36 +1,42 @@
 # WizTalk
 
-WizTalk is a Persian-first, modular interactive AI character platform. Each Character is an independent hybrid chatbot with its own identity, personality, Avatar, Background, voice configuration, AI route, knowledge, settings, and memory boundary.
+WizTalk is a Persian-first modular interactive AI character platform. Each Character is an independent hybrid chatbot with its own identity, personality, Avatar, Background, voice configuration, AI route, knowledge, settings, and memory boundary.
 
-Current stable baseline: v2.0.0. Post-v2 work is unreleased until an explicit version is cut.
+Current stable baseline: v2.0.0. Post-v2 work remains unreleased until an explicit version is cut.
 
 ## Persistence
 
-WizTalk now uses server-authoritative SQLite persistence for authenticated application data.
+WizTalk uses server-authoritative SQLite persistence for authenticated application data.
 
-Persisted server data currently includes:
+Durable data currently includes:
 
 - user accounts and authentication sessions;
+- user profile and preferences;
+- built-in Character configuration from repository data;
+- custom Characters owned by the authenticated user;
+- per-user Character settings;
 - chat sessions and messages;
-- Character-scoped knowledge documents;
+- Character/user-scoped knowledge documents;
 - response/provider telemetry;
 - schema migration history.
 
-The production Render configuration stores SQLite at /data/wiztalk.sqlite on a persistent disk. Pending migrations are applied automatically during database initialization.
+Production Render stores SQLite at /data/wiztalk.sqlite on a persistent disk. Pending migrations run automatically during database initialization.
 
-Chat history is no longer browser-local. Browser localStorage remains only for client-local state that has not yet moved to server ownership, notably custom Characters and some user-facing preferences.
+Browser localStorage is no longer the source of truth for accounts, chat history, custom Characters, Character settings, profile, or preferences. Provider credentials are never stored in the browser.
 
-See docs/database.md for the database architecture and migration rules.
+See docs/database.md for the persistence architecture.
 
 ## Character isolation
 
-Built-in Characters are Harry, Hermione, and Ron. Their definitions remain repository-owned domain configuration. Provider/model strategy remains server-authoritative.
+Built-in Characters are Harry, Hermione, and Ron and remain repository-owned domain configuration.
 
-Custom Characters are currently browser-local. They are not yet cross-device durable and are not yet part of the authenticated database ownership model.
+Custom Characters are stored server-side with an authenticated user owner. A user cannot read, update, or delete another user's custom Character through the API.
+
+Provider/model selection remains server-authoritative. Runtime route resolution validates the configured provider/model against the supported server configuration.
 
 ## Response Manager
 
-ResponseManager owns response orchestration and fallback. Response attempts are now persisted as sanitized telemetry without API keys, passwords, raw provider payloads, or raw provider error details.
+ResponseManager owns response orchestration and fallback. Response attempts are persisted as sanitized telemetry with user/session/message context. API keys, passwords, raw provider payloads, and raw provider error details are not stored.
 
 ## Voice
 
@@ -46,7 +52,7 @@ Requirements: Node.js 20+
     npm test
     npm run build
 
-The normal server startup runs pending database migrations automatically. The db:migrate script is also available for explicit migration execution.
+Database migrations run automatically on server startup. The db:migrate script can also run the migration runner explicitly.
 
 ## Documentation
 
@@ -62,15 +68,12 @@ The normal server startup runs pending database migrations automatically. The db
 - SECURITY.md
 - CHANGELOG.md
 
-## Roadmap
+## Remaining roadmap
 
-1. Expand real AI model activation to all built-in Characters.
-2. Complete production persistence.
-3. Migrate custom Characters and user-owned Character settings to server persistence.
-4. Long-term memory.
-5. Production Avatar, Live2D and 3D renderers.
-6. Advanced Voice and Lip-Sync.
-7. Moderation and Safety.
-8. Agent and Tools architecture.
-9. Production observability and deployment hardening.
-10. UX and product polish.
+1. Long-term memory behavior and retention/deletion policies.
+2. Production Avatar / Live2D / 3D renderers.
+3. Advanced Voice and Lip-Sync.
+4. Moderation and Safety.
+5. Agent and Tools architecture.
+6. Production observability and deployment hardening.
+7. UX and product polish.
