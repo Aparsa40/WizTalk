@@ -4,6 +4,24 @@ WizTalk is a Persian-first modular interactive AI character platform. Each Chara
 
 Current application version: v2.1.0. This persistence release is the next version after the v2.0.0 stable baseline.
 
+## Deployment status
+
+> **Current live deployment:** [https://wiztalk.onrender.com](https://wiztalk.onrender.com)
+>
+> The live service is currently deployed from the **`deploy/render-free`** branch because a payment method is not currently available for the Render account. This branch uses Render's **Free** web-service plan and intentionally omits the persistent disk required by the production SQLite topology.
+>
+> **Important:** the current free deployment is a live/test deployment and should not be treated as a durable production environment. Without persistent storage, SQLite data may be lost when the Render service is restarted or recreated.
+>
+> The **`main`** branch contains the intended production Render configuration. Its Blueprint uses the paid **`0.5c-512mb`** service plan and a 2 GB persistent disk mounted at **`/data`**. Deploying this topology on Render requires adding a valid payment method to the Render account.
+>
+> ### Deployment paths
+>
+> | Branch | Render plan | Persistent disk | Status |
+> | --- | --- | --- | --- |
+> | `deploy/render-free` | Free | No | **Currently live** |
+> | `main` | `0.5c-512mb` | 2 GB at `/data` | **Ready for production after Render payment method is added** |
+>
+
 ## Persistence
 
 WizTalk uses server-authoritative SQLite persistence for authenticated application data.
