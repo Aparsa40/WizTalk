@@ -192,6 +192,11 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
       character,
       history,
       mode: responseMode,
+      persistence: {
+        userId: user.id,
+        chatSessionId: session.id,
+        messageId: userMessage.id,
+      },
       userId: user.id,
       chatSessionId: session.id,
       messageId: userMessage.id,
