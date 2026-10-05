@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AppState, Character } from './types';
 import { CharacterService } from './services/character';
-import { MemoryService } from './services/memory';
 import { CharacterSelector } from './components/CharacterSelector';
 import { ChatUI } from './components/ChatUI';
 import { CharacterSettings } from './components/CharacterSettings';
@@ -12,7 +11,7 @@ import { ApiService } from './services/api';
 export default function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [characters, setCharacters] = useState<Character[]>([]);
-  const [appState, setAppState] = useState<AppState>(() => ({ ...MemoryService.getAppState(), selectedCharacterId: null }));
+  const [appState, setAppState] = useState<AppState>(() => ({ selectedCharacterId: null, provider: 'local', model: 'faq-keyword-v1', voiceEnabled: true, userProfile: { name: '', preferredAddress: '', interests: [], notes: '' } }));
   const [showSettings, setShowSettings] = useState(false);
   const [showCharacterSettings, setShowCharacterSettings] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -28,18 +27,33 @@ export default function App() {
   useEffect(() => {
     void ApiService.authStatus().then((status) => {
       setAuthenticated(status.authenticated);
-      if (status.authenticated) void load();
-      else setLoading(false);
+      if (status.authenticated) {
+        void Promise.all([load(), ApiService.getPreferences(), ApiService.getProfile()])
+          .then(([, preferences, profile]) => {
+            setAppState((current) => ({
+              ...current,
+              selectedCharacterId: preferences.selectedCharacterId,
+              voiceEnabled: preferences.voiceEnabled,
+              userProfile: profile,
+            }));
+          })
+          .catch((error) => setError(error instanceof Error ? error.message : 'بارگذاری اطلاعات حساب ناموفق بود.'));
+      } else setLoading(false);
     }).catch(() => { setAuthenticated(false); setLoading(false); });
   }, []);
 
   const update = (updates: Partial<AppState>) => {
     const next = { ...appState, ...updates };
-    setAppState(next); MemoryService.saveAppState(next);
+    setAppState(next);
+    void ApiService.savePreferences({
+      selectedCharacterId: next.selectedCharacterId,
+      voiceEnabled: next.voiceEnabled,
+    });
+    if (updates.userProfile) void ApiService.saveProfile(next.userProfile);
   };
 
-  const saveCharacterSettings = (updated: Character) => {
-    const saved = CharacterService.saveUserSettings(updated);
+  const saveCharacterSettings = async (updated: Character) => {
+    const saved = await CharacterService.saveUserSettings(updated);
     setCharacters((current) => current.map((item) => item.identity.id === saved.identity.id ? saved : item));
   };
 
