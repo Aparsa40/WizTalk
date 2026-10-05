@@ -1,23 +1,41 @@
-Security Policy
+# Security Policy
 
-WizTalk now has authenticated server-side persistence for accounts, sessions, chat history, Character-scoped knowledge, and response telemetry.
+WizTalk now has authenticated server-side persistence for accounts, sessions, profiles, preferences, custom Characters, Character settings, chat history, knowledge, and response telemetry.
 
-API keys remain server-side environment variables and must never be stored in browser localStorage or database records.
+## Credentials
 
-Authentication sessions use hashed tokens. Chat sessions are scoped by authenticated user. Knowledge is Character-scoped. Future user-owned resources must enforce the same ownership boundary.
+Provider credentials remain server-side environment variables. They must never be stored in browser localStorage or database records.
 
-Response telemetry stores operational metadata and sanitized error categories. It must not store API keys, passwords, session tokens, raw provider payloads, or unnecessary raw user content.
+## Ownership
 
-SQLite uses WAL mode and foreign keys. Production SQLite must live on persistent storage. Schema changes use numbered transactional migrations.
+- Authentication sessions use hashed tokens.
+- Chat sessions and messages are scoped to the authenticated user.
+- Custom Characters are scoped to the authenticated user.
+- Character settings are scoped to the authenticated user.
+- Knowledge access is scoped to the authenticated user and Character.
+- Built-in Character definitions remain trusted repository data.
+- Provider/model routes are validated server-side.
 
-Browser localStorage is not the source of truth for authenticated chat history. Custom Characters and some user-facing settings remain browser-local until their authenticated persistence phase is implemented.
+## Response telemetry
 
-Known limitations:
-- Custom Characters are not yet cross-device durable.
-- Some Character/UI settings remain client-local.
-- Long-term memory, production moderation, and tool/agent permissions are future work.
-- Provider health/cooldown is process-local operational state and resets after restart.
+Response telemetry stores identifiers, provider/model names, success state, latency, and sanitized error categories.
 
-Before production changes run npm run lint, npm test, and npm run build, and review dependencies and deployment HTTPS/security headers.
+It must not store API keys, passwords, session tokens, raw provider payloads, or unnecessary raw user content.
+
+## Database
+
+SQLite uses WAL mode, foreign keys, and a persistent production path. Schema changes use numbered transactional migrations.
+
+## Browser storage
+
+Browser localStorage is not the source of truth for authenticated application data. The obsolete client-local conversation memory store has been removed.
+
+## Known limitations
+
+- The memories table is a foundation only; long-term memory behavior is not yet implemented.
+- Provider health/cooldown state is process-local operational state and resets after restart.
+- Production moderation and tool/agent permission architecture are future work.
+
+Before production changes run npm run lint, npm test, and npm run build, and review dependencies, HTTPS, security headers, and deployment storage.
 
 Last Updated: 2026-10-05
