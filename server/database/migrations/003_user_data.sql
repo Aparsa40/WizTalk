@@ -51,6 +51,15 @@ CREATE TABLE IF NOT EXISTS memories (
 
 ALTER TABLE knowledge_documents ADD COLUMN user_id TEXT;
 
+UPDATE knowledge_documents
+SET user_id = (
+  SELECT id
+  FROM users
+  ORDER BY created_at ASC
+  LIMIT 1
+)
+WHERE user_id IS NULL;
+
 CREATE INDEX IF NOT EXISTS idx_user_profiles_updated
 ON user_profiles(updated_at);
 
