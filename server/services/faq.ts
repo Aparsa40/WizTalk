@@ -13,7 +13,11 @@ export async function getFAQs(character?: ServerCharacter): Promise<FAQItem[]> {
   return character?.knowledge.faq.entries ?? [];
 }
 
-export async function findLocalAnswer(message: string, character?: ServerCharacter): Promise<string> {
+export async function findLocalAnswer(
+  message: string,
+  character?: ServerCharacter,
+  userId?: string,
+): Promise<string> {
   const normalized = message.toLocaleLowerCase('fa-IR').trim();
   const faqs = await getFAQs(character);
   const match = faqs.find((faq) =>
@@ -24,8 +28,8 @@ export async function findLocalAnswer(message: string, character?: ServerCharact
 
   if (match) return match.response || match.answer || '';
 
-  if (character) {
-    const knowledge = searchKnowledge(character.identity.id, message);
+  if (character && userId) {
+    const knowledge = searchKnowledge(userId, character.identity.id, message);
     if (knowledge) {
       return `بر اساس دانشی که برای ${character.identity.displayName} ذخیره شده:\n\n${knowledge}`;
     }
