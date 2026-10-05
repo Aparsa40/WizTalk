@@ -1,10 +1,6 @@
 import { ServerCharacter } from './characters';
 import { executeProvider, HistoryItem, Provider, providers, resolveConfiguredRoute } from './ai';
-import {
-  registerProviderFailure,
-  registerProviderSuccess
-} from './provider-health';
-
+import { registerProviderFailure, registerProviderSuccess } from './provider-health';
 import { logResponse } from './response-logger';
 
 export const DEFAULT_RESPONSE_TIMEOUT_MS = 12000;
@@ -15,6 +11,9 @@ export interface ResponseManagerRequest {
   character: ServerCharacter;
   history?: HistoryItem[];
   mode?: ResponseMode;
+  userId?: string;
+  chatSessionId?: string;
+  messageId?: string;
 }
 
 export interface ResponseResult {
@@ -65,7 +64,7 @@ export class ResponseManager {
     const message = request.message.trim();
     const mode = request.mode ?? 'text';
 
-    if (!message) return this.finalFallback(mode);
+    if (!message) return this.finalFallback(request);
 
     const history = (request.history ?? [])
       .filter((item) => (item.sender === 'user' || item.sender === 'character') && typeof item.text === 'string')
@@ -75,7 +74,7 @@ export class ResponseManager {
 
     if (mode === 'voice') {
       const voiceResult = await this.runModelPair(
-        request.character,
+        request,
         history,
         message,
         voicePair.primary,
@@ -89,7 +88,7 @@ export class ResponseManager {
     const textPair = request.character.textModels;
 
     const textResult = await this.runModelPair(
-      request.character,
+      request,
       history,
       message,
       textPair.primary,
@@ -101,7 +100,6 @@ export class ResponseManager {
 
     try {
       const start = Date.now();
-
       const localResponse = await withTimeout(
         this.execute(
           'local',
@@ -112,12 +110,12 @@ export class ResponseManager {
         ),
         this.timeoutMs,
       );
-
       const latencyMs = Date.now() - start;
 
       if (isValidResponse(localResponse)) {
-        await logResponse({
-         characterId: undefined,
+        logResponse({
+          ...this.logContext(request),
+          characterId: request.character.identity.id,
           provider: 'local',
           model: providers.local.defaultModel,
           success: true,
@@ -134,73 +132,63 @@ export class ResponseManager {
         };
       }
     } catch (error) {
+      logResponse({
+        ...this.logContext(request),
+        characterId: request.character.identity.id,
+        provider: 'local',
+        model: providers.local.defaultModel,
+        success: false,
+        latencyMs: this.timeoutMs,
+        errorType: error instanceof Error ? error.message : 'unknown_error',
+      });
       console.warn('Character-local offline response engine failed', error);
     }
 
-    return this.finalFallback(mode);
+    return this.finalFallback(request);
   }
 
-
   private async runModelPair(
-    character: ServerCharacter,
+    request: ResponseManagerRequest,
     history: HistoryItem[],
     message: string,
     primary: ServerCharacter['textModels']['primary'],
     secondary: ServerCharacter['textModels']['secondary'],
     mode: ResponseMode,
   ): Promise<ResponseResult | null> {
-
     const attempts = [primary, secondary]
       .filter((config) => config.enabled !== false)
       .map(resolveConfiguredRoute);
 
-
     for (const [index, attempt] of attempts.entries()) {
-
       const startedAt = Date.now();
 
       try {
-
         let response = '';
         let lastError: unknown;
 
-
         for (let retry = 0; retry < 2; retry += 1) {
-
           try {
-
             response = await withTimeout(
               this.execute(
                 attempt.provider,
                 attempt.model,
-                character,
+                request.character,
                 history,
                 message,
               ),
               this.timeoutMs,
             );
 
-
             if (!isValidResponse(response)) {
               throw new Error('provider returned an empty response');
             }
 
-
             break;
-
-
           } catch (error) {
-
             lastError = error;
-
-
-            if (!this.isRetryable(error) || retry === 1) {
-              break;
-            }
-
+            if (!this.isRetryable(error) || retry === 1) break;
           }
         }
-
 
         if (!isValidResponse(response)) {
           throw lastError instanceof Error
@@ -208,21 +196,17 @@ export class ResponseManager {
             : new Error('provider request failed');
         }
 
-
         const latencyMs = Date.now() - startedAt;
-
-
         registerProviderSuccess(attempt.provider);
 
-
-        await logResponse({
-          characterId: undefined,
+        logResponse({
+          ...this.logContext(request),
+          characterId: request.character.identity.id,
           provider: attempt.provider,
           model: attempt.model,
           success: true,
           latencyMs,
         });
-
 
         return {
           response: response.trim(),
@@ -232,18 +216,13 @@ export class ResponseManager {
           fallbackUsed: index > 0 || mode === 'voice',
           mode,
         };
-
-
       } catch (error) {
-
         const latencyMs = Date.now() - startedAt;
-
-
         registerProviderFailure(attempt.provider);
 
-
-        await logResponse({
-          characterId: undefined,
+        logResponse({
+          ...this.logContext(request),
+          characterId: request.character.identity.id,
           provider: attempt.provider,
           model: attempt.model,
           success: false,
@@ -251,59 +230,53 @@ export class ResponseManager {
           errorType: error instanceof Error ? error.message : 'unknown_error',
         });
 
-
-        console.warn(
-          `Response provider ${attempt.provider} failed`,
-          error,
-        );
-
+        console.warn(`Response provider ${attempt.provider} failed`, error);
       }
     }
 
     return null;
   }
 
+  private logContext(request: ResponseManagerRequest) {
+    return {
+      userId: request.userId,
+      chatSessionId: request.chatSessionId,
+      messageId: request.messageId,
+    };
+  }
 
   private isRetryable(error: unknown): boolean {
-
-    const candidate = error as {
-      status?: number;
-      code?: string;
-      message?: string;
-    };
-
-
+    const candidate = error as { status?: number; code?: string; message?: string };
     const status = candidate?.status;
-
 
     if (typeof status === 'number') {
       return status === 408 || status === 429 || status >= 500;
     }
 
-
-    const message = String(
-      candidate?.message ?? error ?? '',
-    ).toLowerCase();
-
-
+    const message = String(candidate?.message ?? error ?? '').toLowerCase();
     return /timeout|timed out|network|fetch failed|econnreset|enotfound|temporar|503|502|429/.test(message);
   }
 
-
-  private finalFallback(mode: ResponseMode): ResponseResult {
+  private finalFallback(request: ResponseManagerRequest): ResponseResult {
+    logResponse({
+      ...this.logContext(request),
+      characterId: request.character.identity.id,
+      provider: 'local',
+      model: 'controlled-final-fallback',
+      success: false,
+      latencyMs: 0,
+      errorType: 'FINAL_FALLBACK',
+    });
 
     return {
-      response:
-        'فعلاً نتوانستم پاسخ مناسبی آماده کنم. لطفاً کمی بعد دوباره تلاش کن.',
+      response: 'فعلاً نتوانستم پاسخ مناسبی آماده کنم. لطفاً کمی بعد دوباره تلاش کن.',
       source: 'fallback',
       provider: 'local',
       model: providers.local.defaultModel,
       fallbackUsed: true,
-      mode,
+      mode: request.mode ?? 'text',
     };
-
   }
 }
-
 
 export const responseManager = new ResponseManager();
