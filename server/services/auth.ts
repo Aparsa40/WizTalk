@@ -24,7 +24,10 @@ function parseCookies(header: string | undefined): Record<string, string> {
 
 function setSessionCookie(res: Response, token: string): void {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  res.setHeader('Set-Cookie', `${COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_TTL_MS / 1000}${secure}`);
+  res.setHeader(
+    'Set-Cookie',
+    `${COOKIE_NAME}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_TTL_MS / 1000}${secure}`,
+  );
 }
 
 function clearSessionCookie(res: Response): void {
@@ -42,7 +45,10 @@ function verifyPassword(password: string, storedHash: string, storedSalt: string
   return candidate.length === expected.length && timingSafeEqual(candidate, expected);
 }
 
-export interface AuthUser { id: string; username: string; }
+export interface AuthUser {
+  id: string;
+  username: string;
+}
 
 export function getUserFromRequest(req: Request): AuthUser | null {
   const token = parseCookies(req.headers.cookie)[COOKIE_NAME];
@@ -59,28 +65,33 @@ export function getUserFromRequest(req: Request): AuthUser | null {
 }
 
 export function registerUser(username: string, password: string, res: Response): AuthUser {
-  const existing = db.prepare('SELECT id FROM users LIMIT 1').get() as { id: string } | undefined;
-  if (existing) throw new Error('ACCOUNT_EXISTS');
-
   const cleanUsername = username.trim();
   if (!/^[a-zA-Z0-9_-]{3,32}$/.test(cleanUsername)) throw new Error('INVALID_USERNAME');
   if (password.length < 8 || password.length > 128) throw new Error('INVALID_PASSWORD');
 
+  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(cleanUsername) as { id: string } | undefined;
+  if (existing) throw new Error('ACCOUNT_EXISTS');
+
   const id = randomBytes(16).toString('hex');
   const { hash, salt } = hashPassword(password);
-  db.prepare('INSERT INTO users (id, username, password_hash, password_salt, created_at) VALUES (?, ?, ?, ?, ?)')
-    .run(id, cleanUsername, hash, salt, now());
+  db.prepare(
+    'INSERT INTO users (id, username, password_hash, password_salt, created_at) VALUES (?, ?, ?, ?, ?)',
+  ).run(id, cleanUsername, hash, salt, now());
 
   createSession(id, res);
   return { id, username: cleanUsername };
 }
 
 export function loginUser(username: string, password: string, res: Response): AuthUser {
-  const row = db.prepare('SELECT id, username, password_hash, password_salt FROM users WHERE username = ?').get(username.trim()) as
+  const row = db.prepare(
+    'SELECT id, username, password_hash, password_salt FROM users WHERE username = ?',
+  ).get(username.trim()) as
     | { id: string; username: string; password_hash: string; password_salt: string }
     | undefined;
 
-  if (!row || !verifyPassword(password, row.password_hash, row.password_salt)) throw new Error('INVALID_CREDENTIALS');
+  if (!row || !verifyPassword(password, row.password_hash, row.password_salt)) {
+    throw new Error('INVALID_CREDENTIALS');
+  }
 
   createSession(row.id, res);
   return { id: row.id, username: row.username };
@@ -89,9 +100,12 @@ export function loginUser(username: string, password: string, res: Response): Au
 function createSession(userId: string, res: Response): void {
   const token = randomBytes(32).toString('base64url');
   const expiresAt = now() + SESSION_TTL_MS;
+
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now());
-  db.prepare('INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)')
-    .run(randomBytes(16).toString('hex'), userId, hashToken(token), expiresAt, now());
+  db.prepare(
+    'INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)',
+  ).run(randomBytes(16).toString('hex'), userId, hashToken(token), expiresAt, now());
+
   setSessionCookie(res, token);
 }
 
