@@ -92,11 +92,16 @@ jobs:
 
       - name: Register test account
         run: |
-          curl -fsS -c /tmp/wiztalk-cookies.txt             -X POST             -H "Content-Type: application/json"             -d '{"username":"ci_smoke_user","password":"ci_smoke_password"}'             http://127.0.0.1:3000/api/auth/register
+          curl -fsS -c /tmp/wiztalk-cookies.txt \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"username":"ci_smoke_user","password":"ci_smoke_password"}' \
+  http://127.0.0.1:3000/api/auth/register
 
       - name: Verify authenticated session
         run: |
-          curl -fsS -b /tmp/wiztalk-cookies.txt             http://127.0.0.1:3000/api/auth/status
+          curl -fsS -b /tmp/wiztalk-cookies.txt \
+  http://127.0.0.1:3000/api/auth/status
 
       - name: Health endpoint
         run: |
