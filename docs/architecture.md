@@ -1,70 +1,47 @@
 # Architecture
 
-WizTalk uses a React/Vite client and an Express server. The server is authoritative for authentication, Character resolution, response generation and durable user data.
+WizTalk uses a React/Vite client and an Express server. The client owns presentation and client-only UI state; the server owns authentication, built-in Character resolution, provider credentials, chat persistence, knowledge persistence, and response orchestration.
 
-## Runtime flow
+## Main runtime
 
-`text
-Browser / ChatUI
-      ↓
-Express API
-      ↓
-Authentication / User Ownership
-      ↓
-Character Resolution
-      ├── Built-in Character JSON
-      └── User-owned Custom Characters
-      ↓
-Chat Session / Message Persistence
-      ↓
-ResponseManager
-      ├── Character-owned model route
-      ├── provider fallback
-      ├── local knowledge
-      └── controlled final fallback
-      ↓
-Persist Response Log
-      ↓
-Chat Message Persistence
-      ↓
-Client
-`
-
-## Persistence architecture
-
-`text
-React Client
-  │
-  └── ApiService
-        │
-        ▼
+```
+Browser
+  ↓
+React / ChatUI
+  ↓
+ApiService
+  ↓
 Express Server
-  ├── Auth
-  ├── Character Service
-  ├── Chat Sessions
-  ├── User Data
-  ├── Knowledge
-  └── Response Manager
-        │
-        ▼
-   SQLite / WAL
-        ├── users
-        ├── sessions
-        ├── chat_sessions
-        ├── chat_messages
-        ├── response_logs
-        ├── user_profiles
-        ├── user_preferences
-        ├── custom_characters
-        ├── character_settings
-        ├── memories
-        └── knowledge_documents
-`
+  ├─ Authentication
+  ├─ Character Resolution
+  ├─ Chat Session / Message Service
+  ├─ Knowledge Service
+  ├─ ResponseManager
+  │    ├─ configured provider
+  │    ├─ fallback provider
+  │    ├─ local provider
+  │    └─ controlled final fallback
+  └─ TTS
+        ↓
+   SQLite Persistence
+```
 
-Schema changes are managed through `server/database/migrations/` and executed transactionally at startup.
+Chat history, accounts, knowledge documents, and response telemetry are server-side durable data. Browser localStorage is not the source of truth for conversations.
 
-## Current status
+## Database boundary
 
-Implemented: authentication and server-side sessions, user-owned chat sessions/messages, durable response logs, user profiles/preferences, account-owned custom Characters, per-user Character settings, and startup database migrations.
+Database access is centralized through server services and a migration runner. Migrations are executed during database initialization and recorded in `schema_migrations`.
 
-Not yet claimed as complete: automatic long-term memory extraction/retrieval, multi-instance PostgreSQL deployment, and production Live2D/3D Avatar rendering.
+The current production deployment uses SQLite on a persistent Render disk. The database path is controlled by `WIZTALK_DB_PATH`.
+
+## Character boundary
+
+Built-in Character definitions remain repository-owned data. The server normalizes them before use. Character/provider/model strategy remains server-authoritative.
+
+Custom Characters and some user-facing Character settings are still browser-local. Migrating those to authenticated server storage is the next persistence task.
+
+## Operational state
+
+Provider health/cooldown information is intentionally process-local operational state. It is not persisted because it can safely be reconstructed after a process restart.
+
+See [Database & Persistence](database.md) for the persistence model.
