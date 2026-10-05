@@ -2,7 +2,7 @@
 
 WizTalk is a Persian-first, modular interactive AI character platform. Each Character is designed as an independent hybrid chatbot with its own identity, personality, Avatar, Background, voice configuration, AI route, knowledge, settings, and memory boundary.
 
-**Current Version:** v2.0.0 — Architecture Baseline + Unreleased Post-v2 Voice/Avatar Stack
+**Current Version:** v2.0.0 stable baseline + Unreleased post-v2 persistence/auth work
 **Release Date:** 2026-09-12
 **Status:** v2.0.0 remains the stable release baseline; post-v2 work currently enables Harry's live model-backed voice stack and independent Avatar/Background selection.
 
@@ -119,7 +119,7 @@ Cloud credentials are server-side environment variables. Harry is the first buil
 
 Character definitions live under `data/characters/` and follow the independent Character schema.
 
-Custom Characters are currently browser-local and stored through the Character service/localStorage abstraction.
+Custom Characters are account-owned and persisted server-side in SQLite.
 
 ## Voice and Avatar
 
