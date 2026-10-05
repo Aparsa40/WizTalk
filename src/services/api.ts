@@ -1,4 +1,4 @@
-import { Character, Message } from '../types';
+import { Character, Message, UserProfile } from '../types';
 
 export type ChatMode = 'text' | 'voice';
 export interface ChatResponse { response: string; message: Message; sessionId: string; }
@@ -38,6 +38,28 @@ export class ApiService {
   }
 
   static async getCharacters(): Promise<Character[]> { return request('/api/characters'); }
+
+  static async getProfile(): Promise<UserProfile> { return request('/api/profile'); }
+
+  static async saveProfile(profile: UserProfile): Promise<UserProfile> {
+    return request('/api/profile', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(profile) });
+  }
+
+  static async getPreferences(): Promise<{ selectedCharacterId: string | null; voiceEnabled: boolean }> {
+    return request('/api/preferences');
+  }
+
+  static async savePreferences(preferences: { selectedCharacterId: string | null; voiceEnabled: boolean }): Promise<void> {
+    await request('/api/preferences', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(preferences) });
+  }
+
+  static async saveCustomCharacter(character: Character): Promise<Character> {
+    return request(`/api/custom-characters/${encodeURIComponent(character.identity.id)}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(character) });
+  }
+
+  static async deleteCustomCharacter(characterId: string): Promise<void> {
+    await request(`/api/custom-characters/${encodeURIComponent(characterId)}`, { method: 'DELETE' });
+  }
 
   static async createSession(characterId: string): Promise<{ session: ChatSession; messages: Message[] }> {
     return request('/api/sessions', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ characterId }) });
