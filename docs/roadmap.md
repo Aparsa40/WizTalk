@@ -1,6 +1,7 @@
 # WizTalk Roadmap
 
 Baseline: v2.0.0 — stable release baseline, 2026-09-12.
+Next release: v2.1.0 — server-authoritative persistence, currently unreleased.
 
 ## Post-v2
 
