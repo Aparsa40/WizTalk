@@ -107,3 +107,34 @@ export function saveUserPreferences(
 
   return preferences;
 }
+
+export function getCharacterSettings(userId: string, characterId: string): Record<string, unknown> | null {
+  const row = db.prepare(
+    'SELECT data_json FROM character_settings WHERE user_id = ? AND character_id = ?',
+  ).get(userId, characterId) as { data_json: string } | undefined;
+
+  if (!row) return null;
+  try {
+    return JSON.parse(row.data_json) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+export function saveCharacterSettings(
+  userId: string,
+  characterId: string,
+  data: Record<string, unknown>,
+): Record<string, unknown> {
+  const timestamp = now();
+
+  db.prepare(
+    `INSERT INTO character_settings (user_id, character_id, data_json, updated_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(user_id, character_id) DO UPDATE SET
+       data_json = excluded.data_json,
+       updated_at = excluded.updated_at`,
+  ).run(userId, characterId, JSON.stringify(data), timestamp);
+
+  return data;
+}
