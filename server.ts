@@ -9,7 +9,7 @@ import { getUserFromRequest, loginUser, logoutUser, registerUser } from './serve
 import { addChatMessage, createChatSession, deleteChatSession, getChatMessages, getChatSession, listChatSessions } from './server/services/chat-sessions';
 import { addKnowledge, deleteKnowledge, listKnowledge } from './server/services/knowledge';
 import { getUserProfile, getUserPreferences, saveUserPreferences, saveUserProfile } from './server/services/user-data';
-import { deleteCustomCharacter, listCustomCharacters, saveCustomCharacter } from './server/services/custom-characters';
+import { deleteCustomCharacter, getCustomCharacter, listCustomCharacters, saveCustomCharacter } from './server/services/custom-characters';
 
 dotenv.config();
 
@@ -119,7 +119,7 @@ app.post('/api/sessions', async (req, res) => {
   const { characterId } = req.body as { characterId?: unknown };
   if (typeof characterId !== 'string') return res.status(400).json({ error: 'شخصیت انتخاب نشده است.' });
 
-  const character = await getCharacter(characterId);
+  const character = await getCharacter(characterId) ?? getCustomCharacter(user.id, characterId);
   if (!character) return res.status(404).json({ error: 'شخصیت پیدا نشد.' });
 
   const session = createChatSession(user.id, character.identity.id, character.identity.greeting);
@@ -176,7 +176,7 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
   const session = getChatSession(user.id, sessionId);
   if (!session) return res.status(404).json({ error: 'جلسه چت پیدا نشد.' });
 
-  const character = await getCharacter(session.characterId);
+  const character = await getCharacter(session.characterId) ?? getCustomCharacter(user.id, session.characterId);
   if (!character) return res.status(404).json({ error: 'شخصیت جلسه پیدا نشد.' });
 
   const safeMessage = message.trim();
