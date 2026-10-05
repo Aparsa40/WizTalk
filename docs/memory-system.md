@@ -1,7 +1,42 @@
 # Memory System
 
-MemoryStore defines the persistence contract. LocalStorageMemory is the V1 implementation and stores messages per character under a namespaced key, plus app settings and the user profile.
+WizTalk now separates conversation history from long-term memory.
 
-Reads and writes are guarded against malformed JSON and storage failures. This keeps the UI usable when browser storage is unavailable or corrupted.
+## Conversation memory
 
-Implemented: local persistence and per-character separation. Planned: IndexedDB or a database adapter for larger histories, accounts, and cross-device synchronization.
+Conversation history is durable server data:
+
+`text
+User
+  ↓
+Authenticated Session
+  ↓
+Chat Session
+  ↓
+Chat Messages
+  ↓
+ResponseManager context
+`
+
+The last bounded message window is sent to the provider by ResponseManager; the complete conversation remains in SQLite.
+
+## User memory
+
+`user_profiles` stores durable user-provided profile information such as name, preferred address, interests and notes.
+
+## Character-scoped long-term memory
+
+The `memories` table provides a durable boundary for future extracted facts/preferences:
+
+- `user_id`
+- `character_id`
+- `kind`
+- `content`
+- `importance`
+- timestamps
+
+The table exists as persistent infrastructure, but automatic memory extraction/retrieval is intentionally not claimed as complete yet.
+
+## Client storage policy
+
+localStorage is no longer the source of truth for messages, profiles, custom Characters, or Character settings. Account-owned state is read and written through the server API.
