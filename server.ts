@@ -197,9 +197,6 @@ app.post('/api/chat', chatRateLimiter, async (req, res) => {
         chatSessionId: session.id,
         messageId: userMessage.id,
       },
-      userId: user.id,
-      chatSessionId: session.id,
-      messageId: userMessage.id,
     });
     const reply = addChatMessage(session.id, 'character', result.response);
     return res.json({ response: reply.text, message: reply, sessionId: session.id });
@@ -265,6 +262,47 @@ app.put('/api/characters/:characterId/settings', (req, res) => {
   }
 
   return res.json(saveCharacterSettings(user.id, req.params.characterId, req.body as Record<string, unknown>));
+});
+
+app.get('/api/knowledge/:characterId', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  return res.json(listKnowledge(user.id, req.params.characterId));
+});
+
+app.post('/api/knowledge/:characterId', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+
+  const body = req.body as { title?: unknown; content?: unknown };
+  if (typeof body.title !== 'string' || typeof body.content !== 'string') {
+    return res.status(400).json({ error: 'عنوان و محتوای دانش الزامی است.' });
+  }
+
+  try {
+    return res.status(201).json(
+      addKnowledge(user.id, req.params.characterId, body.title, body.content),
+    );
+  } catch (error) {
+    if (error instanceof Error && error.message === 'EMPTY_KNOWLEDGE') {
+      return res.status(400).json({ error: 'محتوای دانش نمی‌تواند خالی باشد.' });
+    }
+    return res.status(400).json({ error: 'ذخیره دانش ناموفق بود.' });
+  }
+});
+
+app.delete('/api/knowledge/:characterId/:documentId', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+
+  const deleted = deleteKnowledge(
+    user.id,
+    req.params.documentId,
+    req.params.characterId,
+  );
+  if (!deleted) return res.status(404).json({ error: 'سند دانش پیدا نشد.' });
+
+  return res.json({ ok: true });
 });
 
 app.put('/api/custom-characters/:characterId', (req, res) => {
