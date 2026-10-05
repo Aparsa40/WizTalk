@@ -4,10 +4,17 @@ All notable changes to WizTalk are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - Post-v2 Voice and Avatar Stack
+## [Unreleased] - Post-v2 Voice, Avatar and Persistence Stack
 
 ### Added
 
+- Added server-authoritative SQLite persistence with ordered transactional migrations.
+- Added persisted user profiles and preferences.
+- Added account-owned custom Character persistence.
+- Added per-user Character settings persistence.
+- Added durable response logs linked to user/session/message context.
+- Added an executable database migration CLI.
+- Removed the obsolete client localStorage memory store.
 - Activated Harry's live response-model pair for both text and Voice Chat modes.
 - OpenRouter primary response model: `minimax/minimax-m2.7:free`.
 - Hugging Face secondary response model: `Qwen/Qwen3.8-27B:fastest`.
@@ -43,6 +50,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and
 - External TTS currently provides timing-based avatar events rather than true phoneme/viseme data.
 - The free TTS model is intended for development/prototyping and does not provide production availability guarantees.
 - Production VRM/Live2D/3D Avatar rendering remains future work; the current independent Avatar/Background architecture is renderer-neutral.
+- Automatic long-term memory extraction/retrieval remains future work.
+- The current production deployment uses a single persistent SQLite disk; PostgreSQL is required before horizontal multi-instance scaling.
 
 ## [2.0.0] - 2026-09-12
 
