@@ -1,30 +1,24 @@
 # Memory System
 
-WizTalk separates **conversation history** from browser-local UI state.
+WizTalk separates durable conversation history from the future long-term memory layer.
 
 ## Conversation history
 
-Chat sessions and messages are persisted server-side in SQLite:
+Chat sessions and messages are persisted server-side in SQLite.
 
-- `chat_sessions` belongs to a user and Character.
-- `chat_messages` belongs to a chat session.
-- The authenticated API is the source of truth.
-- Conversation history is restored through `/api/sessions/:sessionId`.
+- chat_sessions belongs to an authenticated user and Character.
+- chat_messages belongs to a chat session.
+- the authenticated API is the source of truth.
+- sessions can be restored across browser sessions and devices using the account.
 
-This is durable application memory, not localStorage-backed chat history.
+## Long-term memory
 
-## Client-local state
+The database now contains a memories table with user and Character ownership fields. The table is a foundation for a future long-term memory feature.
 
-`src/services/memory.ts` currently stores client-only application state such as selected Character, voice preference, and the legacy user-profile structure. This state is not the source of truth for conversations.
+It is not yet populated or automatically retrieved by ResponseManager.
 
-## Future memory layers
+Future memory behavior should add explicit creation/update/deletion rules, bounded retrieval, summarization, and retention policies without mixing long-term memory with the raw chat transcript.
 
-Persistent conversation history is the foundation. A separate long-term memory system can later add:
+## Client state
 
-- explicit user memories;
-- Character-specific memories;
-- bounded retrieval;
-- summarization/compaction;
-- retention/deletion policies.
-
-Those features should use authenticated server storage and must not leak memory between users or Characters.
+The obsolete browser-local conversation memory store has been removed. User profile, preferences, custom Characters, and Character settings use authenticated server APIs.
