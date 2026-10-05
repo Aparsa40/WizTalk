@@ -2,7 +2,7 @@ services:
   - type: web
     name: wiztalk
     runtime: node
-    plan: 0.5c-512mb
+    plan: free
 
     buildCommand: npm ci && npm run build
     startCommand: npm start
@@ -12,13 +12,5 @@ services:
       - key: NODE_ENV
         value: production
 
-      - key: WIZTALK_DB_PATH
-        value: /data/wiztalk.sqlite
-
       - key: PORT
         value: 10000
-
-    disk:
-      name: wiztalk-storage
-      mountPath: /data
-      sizeGB: 2
