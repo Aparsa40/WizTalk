@@ -8,7 +8,7 @@ import { responseManager, type ResponseMode } from './server/services/response-m
 import { getUserFromRequest, loginUser, logoutUser, registerUser } from './server/services/auth';
 import { addChatMessage, createChatSession, deleteChatSession, getChatMessages, getChatSession, listChatSessions } from './server/services/chat-sessions';
 import { addKnowledge, deleteKnowledge, listKnowledge } from './server/services/knowledge';
-import { getUserProfile, getUserPreferences, saveUserPreferences, saveUserProfile } from './server/services/user-data';
+import { getCharacterSettings, getUserProfile, getUserPreferences, saveCharacterSettings, saveUserPreferences, saveUserProfile } from './server/services/user-data';
 import { deleteCustomCharacter, getCustomCharacter, listCustomCharacters, saveCustomCharacter } from './server/services/custom-characters';
 
 dotenv.config();
@@ -243,6 +243,23 @@ app.put('/api/preferences', (req, res) => {
     selectedCharacterId: typeof body.selectedCharacterId === 'string' ? body.selectedCharacterId : current.selectedCharacterId,
     voiceEnabled: typeof body.voiceEnabled === 'boolean' ? body.voiceEnabled : current.voiceEnabled,
   }));
+});
+
+app.get('/api/characters/:characterId/settings', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+  return res.json(getCharacterSettings(user.id, req.params.characterId) ?? {});
+});
+
+app.put('/api/characters/:characterId/settings', (req, res) => {
+  const user = requireUser(req, res);
+  if (!user) return;
+
+  if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+    return res.status(400).json({ error: 'تنظیمات شخصیت نامعتبر است.' });
+  }
+
+  return res.json(saveCharacterSettings(user.id, req.params.characterId, req.body as Record<string, unknown>));
 });
 
 app.put('/api/custom-characters/:characterId', (req, res) => {
