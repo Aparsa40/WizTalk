@@ -1,48 +1,37 @@
 # Data Layer
 
-WizTalk uses a server-authoritative persistence layer. The browser is a presentation client; it is not the source of truth for conversations or account-owned data.
+WizTalk now has a server-side persistence layer for authenticated application data. Static built-in Character definitions remain repository data under `data/characters`; user/session/chat state is persisted through the server database.
 
-## Storage boundaries
+## Server-owned durable data
 
-### Repository-owned static data
+- Authentication users and sessions.
+- Chat sessions and messages.
+- Character-scoped knowledge documents.
+- Response/provider telemetry.
+- Database migration history.
 
-- `data/characters/*.json` — built-in Character definitions.
-- FAQ and inline Character knowledge shipped with the application.
+The database bootstrap lives in `server/services/database.ts`. Schema changes are applied through the numbered SQL migrations under `server/database/migrations`.
 
-Built-in Character configuration remains server-owned and is not copied into per-user database records.
+## Client boundary
 
-### SQLite application data
+`CharacterService` remains the browser boundary for Character presentation. Built-in Characters are loaded from the server. Custom Characters and some user-facing settings are still browser-local and are therefore **not yet cross-device durable**.
 
-The database path is controlled by `WIZTALK_DB_PATH` and defaults to `data/wiztalk.sqlite`.
+`ApiService` is the boundary for authenticated server persistence. Chat history must use the session APIs rather than browser message storage.
 
-The schema is managed by ordered SQL migrations under `server/database/migrations/`. `server/services/database.ts` opens SQLite, enables WAL/foreign keys, and runs migrations before the application uses the database.
+## Persistence contract
 
-Current persisted domains:
+```
+UI
+ ↓
+API Service
+ ↓
+Express / domain services
+ ↓
+Persistence services
+ ↓
+Database
+```
 
-- `users` — account identity and password hash/salt.
-- `sessions` — hashed authentication sessions.
-- `chat_sessions` — user-owned conversations and Character ownership.
-- `chat_messages` — durable conversation messages.
-- `knowledge_documents` — persisted Character knowledge documents.
-- `response_logs` — provider/model outcome and latency telemetry.
-- `user_profiles` — durable user profile memory.
-- `user_preferences` — durable application preferences.
-- `custom_characters` — account-owned custom Character definitions.
-- `character_settings` — account-owned Character overrides.
-- `memories` — schema for durable Character-scoped long-term memory.
+The browser must not become the source of truth for authenticated conversations, accounts, knowledge, or provider telemetry.
 
-## Ownership rule
-
-Every user-owned record must be scoped by `user_id` and every API lookup must verify the authenticated owner before returning or mutating it.
-
-Chat history is never loaded from browser localStorage. The server resolves the authenticated user, then the session, then the session's Character before generating a response.
-
-## Migration rule
-
-Never add production tables directly inside `database.ts`. Add an ordered migration file instead. Migrations are transactional and recorded in `schema_migrations`.
-
-The normal server startup runs pending migrations automatically.
-
-## Large assets
-
-SQLite stores metadata and text application state. Large binary assets such as Avatar/video/audio files should remain in the filesystem or object storage and be referenced by durable database metadata rather than stored as SQLite BLOBs.
+See [Database & Persistence](database.md) for the current schema and migration model.
