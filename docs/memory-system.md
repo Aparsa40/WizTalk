@@ -1,42 +1,30 @@
 # Memory System
 
-WizTalk now separates conversation history from long-term memory.
+WizTalk separates **conversation history** from browser-local UI state.
 
-## Conversation memory
+## Conversation history
 
-Conversation history is durable server data:
+Chat sessions and messages are persisted server-side in SQLite:
 
-`text
-User
-  ↓
-Authenticated Session
-  ↓
-Chat Session
-  ↓
-Chat Messages
-  ↓
-ResponseManager context
-`
+- `chat_sessions` belongs to a user and Character.
+- `chat_messages` belongs to a chat session.
+- The authenticated API is the source of truth.
+- Conversation history is restored through `/api/sessions/:sessionId`.
 
-The last bounded message window is sent to the provider by ResponseManager; the complete conversation remains in SQLite.
+This is durable application memory, not localStorage-backed chat history.
 
-## User memory
+## Client-local state
 
-`user_profiles` stores durable user-provided profile information such as name, preferred address, interests and notes.
+`src/services/memory.ts` currently stores client-only application state such as selected Character, voice preference, and the legacy user-profile structure. This state is not the source of truth for conversations.
 
-## Character-scoped long-term memory
+## Future memory layers
 
-The `memories` table provides a durable boundary for future extracted facts/preferences:
+Persistent conversation history is the foundation. A separate long-term memory system can later add:
 
-- `user_id`
-- `character_id`
-- `kind`
-- `content`
-- `importance`
-- timestamps
+- explicit user memories;
+- Character-specific memories;
+- bounded retrieval;
+- summarization/compaction;
+- retention/deletion policies.
 
-The table exists as persistent infrastructure, but automatic memory extraction/retrieval is intentionally not claimed as complete yet.
-
-## Client storage policy
-
-localStorage is no longer the source of truth for messages, profiles, custom Characters, or Character settings. Account-owned state is read and written through the server API.
+Those features should use authenticated server storage and must not leak memory between users or Characters.
