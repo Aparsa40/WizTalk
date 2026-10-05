@@ -48,5 +48,13 @@ test('database migrations create the durable WizTalk schema', () => {
     ],
   );
 
+  // Migration startup must be idempotent: a second initialization must not
+  // re-run already recorded migrations or change the schema history.
+  runMigrations(database);
+  const rerunMigrations = database.prepare(
+    'SELECT name FROM schema_migrations ORDER BY name',
+  ).all() as Array<{ name: string }>;
+  assert.deepEqual(rerunMigrations, migrations);
+
   database.close();
 });
