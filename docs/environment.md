@@ -4,7 +4,10 @@ Copy .env.example to .env for local development. Real credentials must stay in t
 
 - GEMINI_API_KEY: optional server-side Gemini credential.
 - OPENAI_API_KEY: optional server-side OpenAI credential.
+- OPENROUTER_API_KEY: server-side OpenRouter credential.
+- HUGGING_FACE_TOKEN: server-side Hugging Face credential.
 - NODE_ENV: development or production.
 - PORT: listening port; defaults to 3000.
+- WIZTALK_DB_PATH: SQLite database path; defaults to data/wiztalk.sqlite. Production Render uses /data/wiztalk.sqlite.
 
-There is no client-side provider key field in V1. This prevents cloud credentials from being placed in localStorage or sent in request bodies. If a future version supports user-owned credentials, it must use an explicit secure credential boundary rather than browser persistence.
+Provider credentials never belong in browser storage or user database records. Account-owned application state is persisted through the server API.
