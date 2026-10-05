@@ -1,10 +1,70 @@
 # Architecture
 
-WizTalk uses a React/Vite client and an Express server. The client owns presentation and browser-local state. The server owns built-in data loading and provider credentials.
+WizTalk uses a React/Vite client and an Express server. The server is authoritative for authentication, Character resolution, response generation and durable user data.
 
-The main flow is Character selection, Avatar presentation, Conversation. ChatUI does not contain Harry, Hermione, Ron, or provider-specific API calls. It receives a Character and calls ApiService.
+## Runtime flow
 
-Domain types live in src/types. Storage and external providers are behind services. server/services/characters.ts loads and normalizes JSON. server/services/ai.ts implements the Local, Gemini, and OpenAI adapters. This boundary leaves room for a database adapter and additional providers.
+`text
+Browser / ChatUI
+      ↓
+Express API
+      ↓
+Authentication / User Ownership
+      ↓
+Character Resolution
+      ├── Built-in Character JSON
+      └── User-owned Custom Characters
+      ↓
+Chat Session / Message Persistence
+      ↓
+ResponseManager
+      ├── Character-owned model route
+      ├── provider fallback
+      ├── local knowledge
+      └── controlled final fallback
+      ↓
+Persist Response Log
+      ↓
+Chat Message Persistence
+      ↓
+Client
+`
 
-Implemented: modular character, AI, avatar, voice, and memory layers; health and model endpoints; production-aware Express startup.
-Planned: authenticated users, shared character storage, database persistence, and real-time collaboration.
+## Persistence architecture
+
+`text
+React Client
+  │
+  └── ApiService
+        │
+        ▼
+Express Server
+  ├── Auth
+  ├── Character Service
+  ├── Chat Sessions
+  ├── User Data
+  ├── Knowledge
+  └── Response Manager
+        │
+        ▼
+   SQLite / WAL
+        ├── users
+        ├── sessions
+        ├── chat_sessions
+        ├── chat_messages
+        ├── response_logs
+        ├── user_profiles
+        ├── user_preferences
+        ├── custom_characters
+        ├── character_settings
+        ├── memories
+        └── knowledge_documents
+`
+
+Schema changes are managed through `server/database/migrations/` and executed transactionally at startup.
+
+## Current status
+
+Implemented: authentication and server-side sessions, user-owned chat sessions/messages, durable response logs, user profiles/preferences, account-owned custom Characters, per-user Character settings, and startup database migrations.
+
+Not yet claimed as complete: automatic long-term memory extraction/retrieval, multi-instance PostgreSQL deployment, and production Live2D/3D Avatar rendering.
