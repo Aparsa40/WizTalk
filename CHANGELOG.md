@@ -1,22 +1,23 @@
 Unreleased — Post-v2 Development
 
 Added:
-- Server-side SQLite persistence for users, sessions, chat sessions, chat messages, and Character-scoped knowledge.
+- Server-side SQLite persistence for users, sessions, profiles, preferences, custom Characters, Character settings, chat sessions, chat messages, Character/user-scoped knowledge, and response telemetry.
 - Transactional startup migrations with schema_migrations.
-- Persisted response/provider telemetry with user, chat-session, message, Character, provider, model, latency, success, and sanitized error classification metadata.
+- A durable memories table as the foundation for future long-term memory.
 - Production Render database path using the persistent /data disk.
 - Database migration tests.
 
 Changed:
-- Chat history is now server-authoritative through authenticated session APIs.
-- Database initialization now applies pending migrations before application services use the database.
-- Response logging no longer depends on console output as its persistence mechanism.
-- Documentation now distinguishes durable server persistence from remaining browser-local state.
+- Chat history is server-authoritative through authenticated session APIs.
+- Custom Characters and Character settings are server-side and user-owned.
+- Profile and preferences are server-side and user-owned.
+- Response logging is persisted in SQLite with sanitized error classifications.
+- The obsolete client-local conversation memory store has been removed.
+- Documentation now reflects the current runtime.
 
-Remaining persistence work:
-- Custom Characters are still browser-local.
-- Some user-facing Character/UI settings are still browser-local.
-- Long-term memory tables and retention policies are not yet implemented.
-- Provider health/cooldown state remains process-local by design.
+Remaining:
+- Long-term memory retrieval/management and retention policies are not yet implemented.
+- Provider health/cooldown remains process-local by design.
+- Production moderation, tools/agents, and richer Avatar/Voice work remain future phases.
 
 Previous stable baseline: v2.0.0 — 2026-09-12.
