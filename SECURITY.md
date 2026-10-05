@@ -125,4 +125,4 @@ For the current repository security-reporting mechanism, use GitHub's private se
 
 ---
 
-**Last Updated:** 2026-09-12 — v2.0.0 baseline
+**Last Updated:** 2026-10-05 — post-v2 persistence work
