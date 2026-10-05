@@ -19,6 +19,11 @@ test('database migrations create the durable WizTalk schema', () => {
   assert.ok(names.includes('knowledge_documents'));
   assert.ok(names.includes('response_logs'));
   assert.ok(names.includes('schema_migrations'));
+  assert.ok(names.includes('user_profiles'));
+  assert.ok(names.includes('user_preferences'));
+  assert.ok(names.includes('custom_characters'));
+  assert.ok(names.includes('character_settings'));
+  assert.ok(names.includes('memories'));
 
   const responseColumns = database.prepare(
     'PRAGMA table_info(response_logs)',
@@ -39,6 +44,7 @@ test('database migrations create the durable WizTalk schema', () => {
       '000_initial_schema.sql',
       '001_add_response_logs.sql',
       '002_extend_response_logs.sql',
+      '003_user_data.sql',
     ],
   );
 
